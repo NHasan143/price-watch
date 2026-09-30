@@ -37,7 +37,8 @@ public class PageFetcher {
         } catch (UnsupportedMimeTypeException e) {
             throw new ScrapeFailedException("That URL is not a web page (" + e.getMimeType() + ").", e);
         } catch (IOException e) {
-            throw new ScrapeFailedException("Could not load the page: " + e.getMessage(), e);
+            throw new ScrapeFailedException("Could not load the page (" + e.getMessage() + "). The store may be "
+                    + "blocking automated requests or be unreachable right now; try again later.", e);
         } catch (IllegalArgumentException e) {
             throw new ScrapeFailedException("That does not look like a valid URL.", e);
         }

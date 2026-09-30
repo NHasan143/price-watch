@@ -20,15 +20,17 @@ public class PriceScraper {
 
     private static final Logger log = LoggerFactory.getLogger(PriceScraper.class);
     private static final int MAX_TITLE_LENGTH = 255;
-    private static final int MAX_IMAGE_URL_LENGTH = 2048;
 
     private final PageFetcher fetcher;
     private final PageRenderer renderer;
+    private final ProductImageFinder imageFinder;
     private final List<PriceExtractor> extractors;
 
-    public PriceScraper(PageFetcher fetcher, PageRenderer renderer, List<PriceExtractor> extractors) {
+    public PriceScraper(
+            PageFetcher fetcher, PageRenderer renderer, ProductImageFinder imageFinder, List<PriceExtractor> extractors) {
         this.fetcher = fetcher;
         this.renderer = renderer;
+        this.imageFinder = imageFinder;
         this.extractors = extractors;
     }
 
@@ -71,7 +73,7 @@ public class PriceScraper {
         }
 
         ExtractedPrice price = extracted.get();
-        return new ScrapeResult(price.price(), price.currency(), title(document), image(document));
+        return new ScrapeResult(price.price(), price.currency(), title(document), imageFinder.find(document));
     }
 
     private Optional<ExtractedPrice> extract(Document document, ScrapeTarget target) {
@@ -87,17 +89,5 @@ public class PriceScraper {
         String title = og != null ? og.attr("content") : document.title();
         title = title == null ? "" : title.trim();
         return title.length() > MAX_TITLE_LENGTH ? title.substring(0, MAX_TITLE_LENGTH) : title;
-    }
-
-    private static String image(Document document) {
-        Element og = document.selectFirst("meta[property=\"og:image\"]");
-        if (og == null) {
-            return null;
-        }
-        String url = og.absUrl("content");
-        if (url.isBlank() || url.length() > MAX_IMAGE_URL_LENGTH) {
-            return null;
-        }
-        return url;
     }
 }
