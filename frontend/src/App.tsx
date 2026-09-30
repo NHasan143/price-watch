@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Product } from './api/types'
 import { AddProductForm } from './components/AddProductForm'
+import { EmptyShelf } from './components/EmptyShelf'
 import { HistoryRow } from './components/HistoryRow'
 import { Icon } from './components/Icon'
 import { ProductCard } from './components/ProductCard'
@@ -91,7 +92,7 @@ function App() {
             <img src="/favicon.svg" alt="" width={40} height={40} />
             <div>
               <h1>PriceWatch</h1>
-              <p>Track prices. Get told when they drop.</p>
+              <p>Name your price. We’ll wait for it.</p>
             </div>
           </div>
           <dl className="readouts">
@@ -135,7 +136,9 @@ function App() {
 
         <section className="aisle-section" aria-labelledby="products-heading">
           <div className="shelf-head">
-            <h2 id="products-heading">Your products</h2>
+            <h2 id="products-heading" className={products.length === 0 && !loading ? 'sr-only' : undefined}>
+              Your products
+            </h2>
             {products.length > 0 && (
               <div className="filters" role="group" aria-label="Show products">
                 {FILTERS.filter((f) => f.id === 'all' || counts[f.id] > 0).map((f) => (
@@ -169,15 +172,13 @@ function App() {
               <p className="sr-only">Loading your products…</p>
             </div>
           ) : products.length === 0 && !error ? (
-            <div className="shelf-empty">
-              <div className="bay-display" aria-hidden="true" />
-              <div className="rail">
-                <div className="label label-ghost">
-                  <p className="empty-title">Nothing tracked yet.</p>
-                  <p className="empty-text">Paste a product link above to start tracking it.</p>
-                </div>
-              </div>
-            </div>
+            <EmptyShelf
+              onStart={() => {
+                const input = document.getElementById('product-url')
+                input?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                input?.focus({ preventScroll: true })
+              }}
+            />
           ) : (
             <div className="shelf" ref={shelfRef}>
               {shelfItems}
@@ -187,7 +188,19 @@ function App() {
       </main>
 
       <footer className="site-footer">
-        Prices are read from public product pages. Check a store’s terms before tracking it.
+        <div className="site-footer-inner">
+          <p>Prices are read from public product pages. Check a store’s terms before tracking it.</p>
+          <p className="credit">
+            Created with
+            <svg className="credit-heart" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="love">
+              <path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 3.8 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.3 0 5.5 3.1 4.3 6.6-1.7 4.8-9.2 9.4-9.2 9.4z" />
+            </svg>
+            by{' '}
+            <a href="https://www.linkedin.com/in/naymulhasan143/" target="_blank" rel="noopener noreferrer">
+              Naymul Hasan<span className="sr-only"> (LinkedIn, opens in a new tab)</span>
+            </a>
+          </p>
+        </div>
       </footer>
     </div>
   )
