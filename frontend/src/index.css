@@ -1,0 +1,1418 @@
+/* ==========================================================================
+   PriceWatch: shelf-edge labels on graphite rails.
+   Labels are label stock with ink; the page is the store wall. Label stock is
+   bright white in light theme and a softer bone (#ecebe4) in dark theme so a
+   shelf of labels doesn't glare at night; its ink never changes.
+   Sticker yellow is reserved for "at or below your price".
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* store */
+  --wall: #e6e8e7;
+  --wall-line: #cdd1cf;
+  --wall-hover: #d9dcdb;
+  --bay: #f4f5f4;
+  --bay-shade: rgba(20, 24, 28, 0.16);
+  --rail: #2a2e32;
+  --rail-hi: #3c4147;
+  --text: #141414;
+  --text-2: #464a4f;
+  --fascia: #c2c6c4;
+
+  /* label stock (light in both themes, so its ink never changes) */
+  --label: #ffffff;
+  --ink: #141414;
+  --ink-2: #3f4247;
+  --ink-3: #5f6368;
+  --hair: #e3e4e2;
+  --hair-strong: #b9bcbb;
+
+  /* signals */
+  --sticker: #ffd21f;
+  --sticker-soft: rgba(255, 210, 31, 0.28);
+  --wobbler: #c8232c;
+  --laser: #ff2b2b;
+
+  --focus: var(--text);
+  --font: 'Archivo Variable', 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --wall: #131517;
+    --wall-line: #2a2e32;
+    --wall-hover: #22262a;
+    --bay: #1c1f22;
+    --bay-shade: rgba(0, 0, 0, 0.45);
+    --rail: #07080a;
+    --rail-hi: #25292e;
+    --text: #eceeef;
+    --text-2: #a9aeb3;
+    --fascia: #3f454b;
+
+    --label: #ecebe4;
+    --hair: #d8d7cf;
+    --hair-strong: #aeada6;
+    --wobbler: #d6353b;
+  }
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-color: var(--rail-hi) var(--wall);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--ink);
+  caret-color: currentColor;
+}
+
+::selection {
+  background: var(--sticker);
+  color: #141414;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+dl,
+dd {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.icon {
+  flex: none;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Aisle header ---------- */
+.aisle {
+  background: var(--rail);
+  color: #eceeef;
+  box-shadow: inset 0 -1px 0 var(--rail-hi);
+  --focus: #eceeef;
+}
+
+.aisle-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand h1 {
+  font-size: 1.625rem;
+  font-weight: 850;
+  font-stretch: 125%;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.brand p {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: #aeb3b8;
+}
+
+.readouts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.readout {
+  min-width: 104px;
+  padding: 6px 12px 7px;
+  border-radius: 3px;
+  background: #ffffff;
+  color: #141414;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.readout dt {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  font-stretch: 90%;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #5f6368;
+}
+
+.readout dd {
+  font-size: 1.375rem;
+  font-weight: 850;
+  font-stretch: 110%;
+  line-height: 1.15;
+}
+
+.readout-time {
+  font-size: 1rem !important;
+  font-stretch: 100% !important;
+  line-height: 1.6 !important;
+}
+
+.readout-hit {
+  background: var(--sticker);
+}
+
+.readout-hit dt {
+  color: #3a3000;
+}
+
+.readout-short {
+  display: none;
+}
+
+/* ---------- Layout ---------- */
+.store {
+  flex: 1;
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 36px 24px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.site-footer {
+  padding: 20px 24px 28px;
+  border-top: 1px solid var(--wall-line);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-2);
+}
+
+/* ---------- Rails and labels ---------- */
+.rail {
+  position: relative;
+  padding: 8px 14px 10px;
+  background: linear-gradient(180deg, var(--rail-hi) 0, var(--rail) 8px, var(--rail) calc(100% - 3px), #000 100%);
+  box-shadow: 0 12px 18px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* the clear plastic ticket strip over the channel, catching the store lights */
+.rail::after {
+  content: '';
+  position: absolute;
+  inset: 5px 0 7px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0, rgba(255, 255, 255, 0.05) 38%, rgba(255, 255, 255, 0) 40%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+}
+
+.label {
+  --focus: var(--ink);
+  position: relative;
+  overflow: hidden;
+  padding: 12px 14px 10px;
+  border-radius: 2px;
+  background: var(--label);
+  color: var(--ink);
+}
+
+/* a failed check voids the label: hatched stock, price marked as the last one read */
+.label.is-void {
+  background:
+    repeating-linear-gradient(-45deg, rgba(20, 20, 20, 0.08) 0 5px, rgba(20, 20, 20, 0) 5px 12px),
+    var(--label);
+}
+
+.label.is-void .label-price-now {
+  color: var(--ink-3);
+}
+
+.label-price-slot {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+}
+
+.label-void-tag {
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--ink);
+  color: var(--label);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* barcode scanner sweep while a price is being read */
+.label.is-scanning::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4%;
+  width: 2px;
+  z-index: 1;
+  background: var(--laser);
+  box-shadow: 0 0 10px 3px rgba(255, 43, 43, 0.45);
+  animation: scan 1.1s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+@keyframes scan {
+  to {
+    left: 95%;
+  }
+}
+
+.label-top {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.label-name h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  font-stretch: 82%;
+  line-height: 1.2;
+  /* two lines, always reserved, so every label on a rail is the same height */
+  min-height: 2.4em;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.label-name a {
+  text-decoration: none;
+}
+
+.label-name a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.label-shop {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.label-price {
+  display: inline-flex;
+  align-items: flex-start;
+  line-height: 0.9;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.label-price-now {
+  font-size: clamp(2rem, 1.55rem + 1.2vw, 2.5rem);
+  font-weight: 850;
+  font-stretch: 106%;
+  letter-spacing: -0.03em;
+}
+
+.label-price-symbol {
+  font-size: 0.44em;
+  font-weight: 750;
+  margin: 0.1em 0.08em 0 0;
+  letter-spacing: 0;
+}
+
+.label-price-fraction {
+  font-size: 0.44em;
+  margin: 0.08em 0 0 0.04em;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.18em;
+}
+
+.label-price-empty {
+  color: var(--ink-3);
+}
+
+.label-price.is-reprinted {
+  animation: reprint 560ms var(--ease-out);
+}
+
+@keyframes reprint {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-6px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+
+.label-target {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--hair-strong);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.label-target strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.label-gap {
+  font-weight: 700;
+}
+
+.label-gap-under {
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--sticker);
+  color: #141414;
+}
+
+.label-range {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+  font-size: 0.75rem;
+}
+
+.label-range div {
+  display: flex;
+  gap: 4px;
+}
+
+.label-range dt {
+  color: var(--ink-3);
+}
+
+.label-range dd {
+  font-weight: 700;
+}
+
+.label-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.barcode {
+  width: 72px;
+  height: 18px;
+  fill: var(--ink);
+  flex: none;
+}
+
+.label-code {
+  min-width: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.label-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--hair-strong);
+}
+
+.label-edit label {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 120px;
+}
+
+.label-edit-caption {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ---------- Inputs (written on label stock) ---------- */
+input[type='url'],
+input[type='number'],
+input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  transition: background-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+input::placeholder {
+  color: var(--ink-3);
+  font-weight: 450;
+}
+
+input:focus {
+  outline: none;
+}
+
+input:focus-visible {
+  background: var(--sticker-soft);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+input[type='number'] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out, transform 150ms var(--ease-out);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-ink {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.btn-ink:hover:not(:disabled) {
+  background: #000000;
+  transform: translateY(-1px);
+}
+
+.btn-ink:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-large {
+  padding: 13px 20px;
+  font-size: 1rem;
+  font-weight: 750;
+  font-stretch: 96%;
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+}
+
+.label .btn:not(.btn-ink) {
+  border-color: var(--hair-strong);
+}
+
+.label .btn:not(.btn-ink):hover:not(:disabled) {
+  background: var(--hair);
+}
+
+.btn-ghost {
+  padding: 6px 8px;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--wall-hover);
+  color: var(--text);
+}
+
+.btn-danger:hover:not(:disabled) {
+  color: var(--wobbler);
+}
+
+/* ---------- Notices ---------- */
+.notice {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 16px 12px 10px;
+  border-radius: 3px;
+  background: var(--label);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.25);
+}
+
+/* void tape: the label could not be read */
+.notice-void::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: 3px 3px 0 0;
+  background: repeating-linear-gradient(-45deg, var(--ink) 0 6px, var(--label) 6px 12px);
+}
+
+.notice .icon {
+  margin-top: 1px;
+}
+
+.notice-banner {
+  align-items: center;
+  margin-top: 0;
+  font-size: 0.9375rem;
+}
+
+.notice-banner .btn {
+  margin-left: auto;
+}
+
+/* ---------- Label printer (add form) ---------- */
+.printer {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: 16px 36px;
+  align-items: start;
+}
+
+.printer > .notice {
+  grid-column: 2;
+  margin-top: 0;
+}
+
+.printer-intro h2 {
+  font-size: 1.625rem;
+  font-weight: 850;
+  font-stretch: 88%;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.printer-intro p {
+  margin-top: 10px;
+  color: var(--text-2);
+  font-size: 0.9375rem;
+  max-width: 44ch;
+}
+
+.label-blank {
+  padding: 18px 20px 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 4px;
+  box-shadow: 0 18px 32px -20px rgba(0, 0, 0, 0.55);
+}
+
+.blank-foot {
+  margin-top: 12px;
+}
+
+.blank-foot .label-code {
+  white-space: normal;
+}
+
+.blank-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 230px);
+  grid-template-areas:
+    'url price'
+    'name submit';
+  gap: 18px 24px;
+  align-items: stretch;
+}
+
+.blank-url {
+  grid-area: url;
+}
+
+.blank-price {
+  grid-area: price;
+}
+
+.blank-name {
+  grid-area: name;
+}
+
+.blank-submit {
+  grid-area: submit;
+  align-self: end;
+}
+
+.blank-submit .btn {
+  width: 100%;
+}
+
+.blank-field {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 2px;
+}
+
+.blank-field input {
+  align-self: end;
+}
+
+.blank-caption {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.blank-caption em {
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.blank-price input {
+  font-size: 2rem;
+  font-weight: 850;
+  font-stretch: 106%;
+  letter-spacing: -0.02em;
+  padding-bottom: 2px;
+}
+
+.blank-price input::placeholder {
+  font-weight: 850;
+}
+
+.blank-advanced {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hair-strong);
+  font-size: 0.8125rem;
+}
+
+.blank-advanced summary {
+  width: fit-content;
+  color: var(--ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.blank-advanced summary::marker {
+  color: var(--ink-3);
+}
+
+.blank-advanced .blank-field {
+  margin-top: 10px;
+  max-width: 420px;
+}
+
+/* ---------- Shelf ---------- */
+.shelf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.shelf-head h2 {
+  font-size: 1.625rem;
+  font-weight: 850;
+  font-stretch: 88%;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--wall-line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.filter:hover {
+  background: var(--wall-hover);
+  color: var(--text);
+}
+
+.filter[aria-pressed='true'] {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--wall);
+}
+
+.filter-below[aria-pressed='true'] {
+  border-color: var(--sticker);
+  background: var(--sticker);
+  color: #141414;
+}
+
+.filter-count {
+  font-weight: 800;
+  opacity: 0.75;
+}
+
+.shelf {
+  display: grid;
+  /* bays touch so the rails read as one shelf edge; keep 330px in sync with BAY_MIN_WIDTH in App.tsx */
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 48px 0;
+  align-items: start;
+}
+
+/* ---------- Bay: product on the shelf, label on the rail ---------- */
+.bay-display {
+  position: relative;
+  container-type: inline-size;
+  height: 176px;
+  display: grid;
+  place-items: center;
+  padding: 18px 24px 14px;
+  background: var(--bay);
+  box-shadow: inset 0 14px 22px -16px var(--bay-shade), inset -1px 0 0 var(--wall-line);
+}
+
+.bay-product {
+  max-width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+/* the photo's white background drops out against the bay (light) or its label-stock tile (dark) */
+.bay-tile {
+  display: grid;
+  place-items: center;
+  max-width: 100%;
+  max-height: 140px;
+}
+
+img.bay-product {
+  mix-blend-mode: multiply;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bay-tile {
+    isolation: isolate;
+    padding: 8px;
+    border-radius: 4px;
+    background: var(--label);
+    box-shadow: 0 6px 14px -6px rgba(0, 0, 0, 0.6);
+  }
+
+  img.bay-product {
+    max-height: 124px;
+  }
+}
+
+/* no product photo: the shop's name printed like a fascia strip */
+.bay-product-blank {
+  color: var(--fascia);
+  /* sized so the whole shop name fits the bay: ~0.5em per condensed capital */
+  font-size: clamp(1rem, calc((100cqi - 48px) / (var(--chars, 12) * 0.5)), 2.75rem);
+  font-weight: 900;
+  font-stretch: 70%;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.has-signage .bay-product-blank {
+  align-self: start;
+  margin-top: 10px;
+}
+
+.bay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 8px 6px 0;
+}
+
+.bay-open .bay-actions [aria-expanded='true'] {
+  background: var(--wall-hover);
+  color: var(--text);
+}
+
+/* the markdown sticker: the whole point of the app */
+.sticker {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: grid;
+  gap: 1px;
+  max-width: 70%;
+  padding: 8px 12px 9px;
+  border-radius: 7px;
+  background: var(--sticker);
+  color: #141414;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.22), 0 1px 2px rgba(0, 0, 0, 0.2);
+  transform: rotate(-6deg);
+  transform-origin: 70% 60%;
+  animation: slap 620ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 180ms);
+}
+
+@keyframes slap {
+  from {
+    transform: translateY(-28px) rotate(-18deg) scale(1.4);
+    box-shadow: 0 24px 28px rgba(0, 0, 0, 0.18), 0 1px 2px rgba(0, 0, 0, 0);
+  }
+  65% {
+    transform: rotate(-4deg) scale(0.97);
+  }
+  to {
+    transform: rotate(-6deg);
+  }
+}
+
+.sticker-head {
+  font-size: 1.1875rem;
+  font-weight: 900;
+  font-stretch: 112%;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.sticker-line {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* shelf wobbler: close to the target */
+.wobbler {
+  position: absolute;
+  left: 16px;
+  bottom: 22px;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  width: 92px;
+  height: 92px;
+  place-content: center;
+  border-radius: 50%;
+  background: var(--wobbler);
+  color: #ffffff;
+  text-align: center;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25);
+  transform-origin: 50% 130%;
+  transform: rotate(-4deg);
+}
+
+.wobbler::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 4px;
+  height: 24px;
+  margin-left: -2px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(255, 255, 255, 0.8) 50%, rgba(0, 0, 0, 0.28));
+  border-radius: 0 0 2px 2px;
+}
+
+.bay:hover .wobbler {
+  animation: wobble 900ms var(--ease-out);
+}
+
+@keyframes wobble {
+  0% {
+    transform: rotate(-4deg);
+  }
+  25% {
+    transform: rotate(7deg);
+  }
+  50% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+  100% {
+    transform: rotate(-4deg);
+  }
+}
+
+.wobbler-head {
+  font-size: 0.9375rem;
+  font-weight: 900;
+  font-stretch: 110%;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.wobbler-line {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.wobbler-sub {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+/* history opens as its own row under the product's shelf row, pointing up at it */
+.history-row {
+  grid-column: 1 / -1;
+  position: relative;
+  margin-top: -32px;
+  padding-top: 12px;
+}
+
+.history-row::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: var(--notch, 50%);
+  width: 22px;
+  height: 12px;
+  margin-left: -11px;
+  background: var(--label);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+/* ---------- History ---------- */
+.history {
+  --focus: var(--ink);
+  padding: 18px 22px 16px;
+  border-radius: 4px;
+  background: var(--label);
+  color: var(--ink);
+  box-shadow: 0 18px 32px -18px rgba(0, 0, 0, 0.55);
+  animation: unroll 420ms var(--ease-out);
+}
+
+@keyframes unroll {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.history-loading,
+.history-empty {
+  color: var(--ink-3);
+  font-size: 0.875rem;
+}
+
+.history-empty {
+  margin-top: 12px;
+}
+
+.history-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-head h4 {
+  font-size: 1.125rem;
+  font-weight: 850;
+  font-stretch: 92%;
+}
+
+.history-sub {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.history-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 14px 0 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--hair-strong);
+}
+
+.history-facts dt {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.history-facts dd {
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+
+.history-chart {
+  margin: 0 -6px;
+}
+
+.segmented {
+  display: inline-flex;
+  flex: none;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.segmented button {
+  padding: 5px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.segmented button:focus-visible {
+  outline-offset: -4px;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--label);
+}
+
+.chart-tooltip {
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.chart-tooltip.is-under {
+  background: var(--sticker);
+  color: #141414;
+  border: 1px solid #141414;
+}
+
+.chart-tooltip-price {
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.chart-tooltip-time {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.recharts-wrapper,
+.recharts-surface {
+  outline: none;
+}
+
+.receipt-scroll {
+  max-height: 300px;
+  overflow: auto;
+  scrollbar-color: var(--hair-strong) transparent;
+}
+
+.receipt {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.receipt th {
+  position: sticky;
+  top: 0;
+  padding: 0 0 6px;
+  background: var(--label);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-3);
+}
+
+.receipt td {
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--hair-strong);
+}
+
+.receipt .num {
+  text-align: right;
+  font-weight: 700;
+}
+
+.receipt-mark {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--sticker);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+/* ---------- Loading and empty ---------- */
+.bay-ghost .bay-display {
+  background: var(--bay);
+}
+
+.label-ghost {
+  min-height: 132px;
+}
+
+.bay-ghost .label-ghost {
+  background:
+    linear-gradient(var(--hair) 0 0) 14px 16px / 58% 12px no-repeat,
+    linear-gradient(var(--hair) 0 0) 14px 36px / 34% 10px no-repeat,
+    linear-gradient(var(--hair) 0 0) calc(100% - 14px) 16px / 26% 30px no-repeat,
+    linear-gradient(var(--hair) 0 0) 14px 104px / 72px 18px no-repeat,
+    var(--label);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.shelf-empty {
+  max-width: 520px;
+}
+
+.shelf-empty .bay-display {
+  height: 88px;
+}
+
+.shelf-empty .label-ghost {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 120px;
+  padding: 20px 22px;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 850;
+  font-stretch: 92%;
+}
+
+.empty-text {
+  color: var(--ink-3);
+  font-size: 0.9375rem;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .printer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .printer > .notice {
+    grid-column: 1;
+  }
+
+}
+
+@media (max-width: 640px) {
+  .aisle-inner {
+    padding: 14px 16px;
+  }
+
+  .readouts {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .readout {
+    min-width: 0;
+    padding: 6px 8px 7px;
+  }
+
+  .readout dt {
+    font-size: 0.625rem;
+  }
+
+  .readout-time {
+    font-size: 0.875rem !important;
+    line-height: 1.6 !important;
+    white-space: nowrap;
+  }
+
+  .readout-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .readout-short {
+    display: inline;
+  }
+
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .filter {
+    flex: none;
+  }
+
+  .store {
+    padding: 28px 16px 56px;
+    gap: 40px;
+  }
+
+  .blank-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'url' 'price' 'name' 'submit';
+  }
+
+  .label-blank {
+    padding: 14px 14px 12px;
+  }
+
+
+  .history {
+    padding: 14px 12px 12px;
+  }
+
+  .history-facts {
+    gap: 8px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+
+  .label.is-scanning::before {
+    left: 50%;
+  }
+}

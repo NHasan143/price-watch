@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Backend (Spring Boot)",
+      "request": "launch",
+      "mainClass": "com.pricewatch.PriceWatchApplication",
+      "cwd": "${workspaceFolder}/backend",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "java",
+      "name": "Backend (re-check prices every minute)",
+      "request": "launch",
+      "mainClass": "com.pricewatch.PriceWatchApplication",
+      "cwd": "${workspaceFolder}/backend",
+      "console": "integratedTerminal",
+      "env": {
+        "PRICEWATCH_SCHEDULER_CRON": "0 * * * * *"
+      }
+    },
+    {
+      "type": "node-terminal",
+      "name": "Frontend (Vite)",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend",
+      "preLaunchTask": "frontend: npm install"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "PriceWatch (Backend + Frontend)",
+      "configurations": ["Backend (Spring Boot)", "Frontend (Vite)"],
+      "stopAll": true
+    },
+    {
+      "name": "PriceWatch (fast re-checks)",
+      "configurations": ["Backend (re-check prices every minute)", "Frontend (Vite)"],
+      "stopAll": true
+    }
+  ]
+}

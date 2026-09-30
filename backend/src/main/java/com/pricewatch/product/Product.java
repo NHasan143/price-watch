@@ -1,0 +1,153 @@
+package com.pricewatch.product;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+/** A product page the user wants to keep an eye on. */
+@Entity
+@Table(name = "products")
+public class Product {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 255)
+    private String name;
+
+    @Column(nullable = false, length = 2048)
+    private String url;
+
+    /** Optional CSS selector that points at the price element (for sites without structured data). */
+    @Column(length = 255)
+    private String cssSelector;
+
+    @Column(length = 2048)
+    private String imageUrl;
+
+    @Column(length = 8)
+    private String currency;
+
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal targetPrice;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal currentPrice;
+
+    private Instant lastCheckedAt;
+
+    @Column(length = 500)
+    private String lastError;
+
+    /** True once an alert was sent for the current "below target" streak, so we do not spam. */
+    @Column(nullable = false)
+    private boolean alertSent;
+
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt = Instant.now();
+
+    protected Product() {
+        // required by JPA
+    }
+
+    public Product(String name, String url, String cssSelector, BigDecimal targetPrice) {
+        this.name = name;
+        this.url = url;
+        this.cssSelector = cssSelector;
+        this.targetPrice = targetPrice;
+    }
+
+    public boolean isBelowTarget() {
+        return currentPrice != null && currentPrice.compareTo(targetPrice) <= 0;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public String getCssSelector() {
+        return cssSelector;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
+
+    public BigDecimal getTargetPrice() {
+        return targetPrice;
+    }
+
+    public void setTargetPrice(BigDecimal targetPrice) {
+        this.targetPrice = targetPrice;
+    }
+
+    public BigDecimal getCurrentPrice() {
+        return currentPrice;
+    }
+
+    public void setCurrentPrice(BigDecimal currentPrice) {
+        this.currentPrice = currentPrice;
+    }
+
+    public Instant getLastCheckedAt() {
+        return lastCheckedAt;
+    }
+
+    public void setLastCheckedAt(Instant lastCheckedAt) {
+        this.lastCheckedAt = lastCheckedAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        if (lastError != null && lastError.length() > 500) {
+            lastError = lastError.substring(0, 500);
+        }
+        this.lastError = lastError;
+    }
+
+    public boolean isAlertSent() {
+        return alertSent;
+    }
+
+    public void setAlertSent(boolean alertSent) {
+        this.alertSent = alertSent;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+}

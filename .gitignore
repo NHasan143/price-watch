@@ -1,0 +1,44 @@
+# Build output
+backend/target/
+frontend/dist/
+
+# Dependencies
+frontend/node_modules/
+
+# Project-local JDK, Maven and dependencies (backend/setup.sh)
+backend/.tools/
+
+# Local database (H2 file created on first run)
+backend/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+application-local.properties
+
+# IDE and OS files
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+.factorypath
+.DS_Store
+Thumbs.db
+
+# VS Code: keep the shared run/debug setup, ignore personal files
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Impeccable scratch output (review screenshots, decision page state)
+.impeccable/review/
+.impeccable/questions/
+.impeccable/mocks/

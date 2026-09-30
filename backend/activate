@@ -1,0 +1,21 @@
+# Puts the project-local JDK and Maven from backend/.tools on PATH for this shell.
+# Usage (bash or zsh): source activate
+# If ./setup.sh has not been run, nothing changes and the global java/mvn are used.
+
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+  _pw_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+  _pw_here="$(cd "$(dirname "${(%):-%x}")" && pwd)" # zsh
+fi
+_pw_jdk="$_pw_here/.tools/jdk-21"
+[ -d "$_pw_jdk/Contents/Home" ] && _pw_jdk="$_pw_jdk/Contents/Home" # macOS bundle layout
+
+if [ -x "$_pw_jdk/bin/java" ] && [ -x "$_pw_here/.tools/bin/mvn" ]; then
+  export JAVA_HOME="$_pw_jdk"
+  # .tools/bin/mvn wraps Maven so dependencies go to .tools/m2 instead of ~/.m2
+  export PATH="$JAVA_HOME/bin:$_pw_here/.tools/bin:$PATH"
+else
+  echo "activate: backend/.tools not found, run ./setup.sh first (using global java/mvn for now)." >&2
+fi
+
+unset _pw_here _pw_jdk

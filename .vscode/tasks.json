@@ -1,0 +1,64 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "frontend: npm install",
+      "type": "npm",
+      "script": "install",
+      "path": "frontend",
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: dev server",
+      "type": "npm",
+      "script": "dev",
+      "path": "frontend",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "frontend: build",
+      "type": "npm",
+      "script": "build",
+      "path": "frontend",
+      "group": "build",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "frontend: lint",
+      "type": "npm",
+      "script": "lint",
+      "path": "frontend",
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: setup (local JDK + Maven)",
+      "type": "shell",
+      "command": "./setup.sh",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: run",
+      "type": "shell",
+      "command": ". ./activate && mvn spring-boot:run",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "backend: test",
+      "type": "shell",
+      "command": ". ./activate && mvn test",
+      "options": { "cwd": "${workspaceFolder}/backend" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "start everything",
+      "dependsOn": ["backend: run", "frontend: dev server"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}
