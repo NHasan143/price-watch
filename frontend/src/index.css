@@ -234,29 +234,86 @@ a {
 }
 
 .site-footer {
-  padding: 20px 24px 28px;
   border-top: 1px solid var(--wall-line);
-  text-align: center;
   font-size: 0.8125rem;
   color: var(--text-2);
+}
+
+.site-footer-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 24px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+}
+
+.credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.credit-heart {
+  fill: var(--sticker);
+  stroke: #141414;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.credit a {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.credit a:hover {
+  text-decoration-thickness: 2px;
 }
 
 /* ---------- Rails and labels ---------- */
 .rail {
   position: relative;
-  padding: 8px 14px 10px;
-  background: linear-gradient(180deg, var(--rail-hi) 0, var(--rail) 8px, var(--rail) calc(100% - 3px), #000 100%);
-  box-shadow: 0 12px 18px -12px rgba(0, 0, 0, 0.5);
+  padding: 0 14px 12px;
+  background: var(--bay);
+  box-shadow: inset -1px 0 0 var(--wall-line);
 }
 
-/* the clear plastic ticket strip over the channel, catching the store lights */
+/* the shelf edge: a slim graphite strip whose lip tucks over the bottom of the label */
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 18px;
+  background: linear-gradient(180deg, var(--rail-hi) 0, var(--rail) 6px, var(--rail) calc(100% - 2px), #000 100%);
+  box-shadow: 0 14px 20px -12px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* the strip's glossy top edge catching the store lights */
 .rail::after {
   content: '';
   position: absolute;
-  inset: 5px 0 7px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0, rgba(255, 255, 255, 0.05) 38%, rgba(255, 255, 255, 0) 40%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  left: 0;
+  right: 0;
+  bottom: 9px;
+  z-index: 2;
+  height: 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
   pointer-events: none;
+}
+
+.rail > .label {
+  padding-bottom: 16px;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 12px 22px -14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .label {
@@ -319,7 +376,8 @@ a {
 }
 
 .label-top {
-  min-height: 62px;
+  /* three name lines plus the shop line, so every label on the shelf is the same height */
+  min-height: 80px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -1289,35 +1347,166 @@ img.bay-product {
   }
 }
 
-.shelf-empty {
-  max-width: 520px;
-}
-
-.shelf-empty .bay-display {
-  height: 88px;
-}
-
-.shelf-empty .label-ghost {
+/* first use: copy and one action beside a slim shelf holding an example label */
+.empty-shelf {
   display: grid;
-  align-content: center;
-  gap: 4px;
-  min-height: 120px;
-  padding: 20px 22px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 40px 64px;
+  align-items: center;
 }
 
-.empty-title {
-  font-size: 1.25rem;
+.empty-copy h3 {
+  font-size: clamp(1.875rem, 1.35rem + 1.6vw, 2.75rem);
   font-weight: 850;
-  font-stretch: 92%;
+  font-stretch: 88%;
+  letter-spacing: -0.025em;
+  line-height: 1.02;
+  text-wrap: balance;
 }
 
-.empty-text {
-  color: var(--ink-3);
-  font-size: 0.9375rem;
+.empty-copy > p {
+  margin-top: 12px;
+  max-width: 44ch;
+  color: var(--text-2);
+}
+
+.empty-steps {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0 28px;
+  padding: 0;
+  list-style: none;
+  font-weight: 650;
+}
+
+.empty-steps li {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-step-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--label);
+  color: var(--ink);
+  box-shadow: 0 3px 8px -3px rgba(0, 0, 0, 0.3);
+}
+
+/* on the dark wall the ink button would vanish, so it takes the label stock instead */
+@media (prefers-color-scheme: dark) {
+  .empty-copy .btn-ink {
+    background: var(--label);
+    color: #141414;
+  }
+
+  .empty-copy .btn-ink:hover:not(:disabled) {
+    background: #ffffff;
+  }
+}
+
+.empty-step-icon.is-sticker {
+  background: var(--sticker);
+  color: #141414;
+}
+
+.empty-scene {
+  padding-top: 72px;
+}
+
+.empty-scene-labels {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.empty-example {
+  position: relative;
+  flex: 0 1 360px;
+  min-width: 0;
+}
+
+.empty-example .label {
+  height: 100%;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 14px 26px -16px rgba(0, 0, 0, 0.55);
+}
+
+.empty-example-name {
+  font-size: 1rem;
+  font-weight: 700;
+  font-stretch: 82%;
+  line-height: 1.2;
+}
+
+.empty-example-tag {
+  position: absolute;
+  top: -11px;
+  left: 12px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--ink);
+  color: var(--label);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.empty-example .sticker {
+  top: -62px;
+  right: -12px;
+  bottom: auto;
+  max-width: none;
+  animation-delay: 420ms;
+}
+
+.empty-slot {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  border: 1.5px dashed var(--wall-line);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+/* the shelf edge: a slim rail whose lip overlaps the bottom of the labels */
+.empty-rail {
+  position: relative;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--rail-hi) 0, var(--rail) 6px, var(--rail) calc(100% - 2px), #000 100%);
+  box-shadow: 0 14px 20px -12px rgba(0, 0, 0, 0.55);
+}
+
+.empty-rail::after {
+  content: '';
+  position: absolute;
+  inset: 3px 0 5px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 60%);
+  pointer-events: none;
 }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 900px) {
+  .empty-shelf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .printer {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1329,6 +1518,13 @@ img.bay-product {
 }
 
 @media (max-width: 640px) {
+  .site-footer-inner {
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    padding: 20px 16px 28px;
+  }
+
   .aisle-inner {
     padding: 14px 16px;
   }
@@ -1381,6 +1577,18 @@ img.bay-product {
   .store {
     padding: 28px 16px 56px;
     gap: 40px;
+  }
+
+  .empty-scene-labels {
+    padding: 0 10px 0 4px;
+  }
+
+  .empty-slot {
+    flex-basis: 84px;
+  }
+
+  .empty-slot span {
+    display: none;
   }
 
   .blank-grid {

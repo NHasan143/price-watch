@@ -1,6 +1,8 @@
-export type IconName = 'refresh' | 'history' | 'pencil' | 'trash' | 'external' | 'alert' | 'plus' | 'check' | 'close'
+export type IconName = 'link' | 'tag' | 'refresh' | 'history' | 'pencil' | 'trash' | 'external' | 'alert' | 'plus' | 'check' | 'close'
 
 const PATHS: Record<IconName, string[]> = {
+  link: ['M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1', 'M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'],
+  tag: ['M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0z', 'M8 8h.01'],
   refresh: ['M20 11a8 8 0 0 0-14.6-4.5L4 8', 'M4 4v4h4', 'M4 13a8 8 0 0 0 14.6 4.5L20 16', 'M20 20v-4h-4'],
   history: ['M4 19h16', 'M4 16l4.5-5 3.5 3 4-6 4 4.5'],
   pencil: ['M14.5 5.5l4 4', 'M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3L8.5 19z'],

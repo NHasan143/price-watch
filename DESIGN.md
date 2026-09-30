@@ -187,14 +187,14 @@ components:
 
 **Creative North Star: "Shelf-Edge Markdown"**
 
-The page is a store wall. Every tracked product stands in a bay above a graphite shelf rail, and its price is a shelf-edge label clipped into the rail's clear plastic ticket strip. Reaching the shopper's target is the yellow markdown sticker slapped onto the bay; getting close is the red shelf wobbler on its spring. Nothing here is a SaaS card: the vocabulary is label stock, ink, rails, stickers, barcodes and SKU print.
+The page is a store wall. Every tracked product stands in a bay above a graphite shelf rail, and its price is a shelf-edge label standing on the bay, its bottom edge tucked under a slim graphite shelf strip. Reaching the shopper's target is the yellow markdown sticker slapped onto the bay; getting close is the red shelf wobbler on its spring. Nothing here is a SaaS card: the vocabulary is label stock, ink, rails, stickers, barcodes and SKU print.
 
 Density is retail, not dashboard. Labels are compact and uniform so a shelf reads at a glance; the only big type on the page is the price, set like a real shelf label with a small currency symbol, a heavy whole number and a raised, underlined fraction. One variable family (Archivo) carries every role by moving its width and weight axes. The world rejects the category default of white cards with green badges and blue buttons.
 
 Light and dark are the same store with the lights changed. The wall, bays and rails darken; label stock stays light (white by day, softer bone at night) so its ink, and every price, never changes.
 
 **Key Characteristics:**
-- Graphite rails with a glossy ticket-strip highlight; bays touch so rails read as one continuous shelf edge.
+- A slim graphite shelf strip (18px) with a glossy top edge, tucked over the bottom of each label; bays touch so the strips read as one continuous shelf edge. Never frame a label on all sides with graphite.
 - Light label stock with black ink in both themes; dark theme uses bone stock to avoid glare.
 - Three signal colors, each owning one state: sticker yellow (at or below target), wobbler red (within 10% of target), laser red (a check in progress).
 - Failed checks void the label (hatched stock, "Last read" tag) instead of hiding the price.
@@ -270,12 +270,13 @@ Spacing steps are 4, 8, 12, 16, 24, 36 and 48px, with tighter 1 to 3px nudges in
 
 ## Elevation & Depth
 
-Depth is physical and soft: things lit from above cast short downward shadows. Rails are a vertical gradient (highlight top, black bottom edge) with a glossy ticket-strip overlay and a soft drop under the shelf. Bay displays are recessed with an inset shade from the top. Labels sit flat inside the strip. Loose objects stuck on or lying on the shelf (readouts, sticker, wobbler, blank label, history panel, dark-theme photo tile) lift off it.
+Depth is physical and soft: things lit from above cast short downward shadows. The shelf strip is a vertical gradient (highlight top, black bottom edge) with a glossy top edge and a soft drop under the shelf. Bay displays are recessed with an inset shade from the top. Labels stand on the bay panel with a soft downward shadow, their bottom 6px hidden under the strip's lip. Loose objects stuck on or lying on the shelf (readouts, sticker, wobbler, blank label, history panel, dark-theme photo tile) lift off it.
 
 ### Shadow Vocabulary
 - **Shelf drop** (`box-shadow: 0 12px 18px -12px rgba(0,0,0,0.5)`): under every rail.
 - **Bay recess** (`box-shadow: inset 0 14px 22px -16px var(--bay-shade), inset -1px 0 0 var(--wall-line)`): top shade and bay seam.
-- **Ticket strip** (`linear-gradient(180deg, rgba(255,255,255,.16) 0, rgba(255,255,255,.05) 38%, transparent 40%)` with `inset 0 1px 0 rgba(255,255,255,.22)`): gloss over the label channel.
+- **Strip gloss** (`linear-gradient(180deg, rgba(255,255,255,.2), transparent)`, 6px): the lit top edge of the shelf strip.
+- **Label lift** (`0 12px 22px -14px rgba(0,0,0,.5)`): a label standing on the bay panel.
 - **Stuck-on** (`box-shadow: 0 4px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.2)`): the sticker. The wobbler uses `0 5px 10px rgba(0,0,0,0.25)`, readouts `0 2px 5px rgba(0,0,0,0.35)`.
 - **Loose sheet** (`box-shadow: 0 18px 32px -20px rgba(0,0,0,0.55)`): blank label and history panel.
 - **Scanner glow** (`box-shadow: 0 0 10px 3px rgba(255,43,43,0.45)`): laser line only.
@@ -306,7 +307,7 @@ Printed and plain: ink blocks on label stock, quiet text on the wall.
 Small labels on the header rail: white stock, 3px, uppercase caption over an 850-weight value. "Tracking / At or below target / Last check", with the middle caption shortened to "At target" under 640px. The middle readout turns sticker yellow when anything is at target.
 
 ### Shelf-Edge Label (signature)
-Label stock in the rail's ticket strip: name block (condensed title plus shop host) beside the price slot; a dashed perforation, then "Your price" with a gap chip ("X under" on sticker yellow, "X to go" plain); lowest/highest; and a foot with a per-product generated barcode and SKU line (`#0001 · EUR · checked 2 hours ago`). Name lines are reserved so labels on a rail stay level.
+Label stock standing on the bay, tucked under the shelf strip: name block (condensed title plus shop host) beside the price slot; a dashed perforation, then "Your price" with a gap chip ("X under" on sticker yellow, "X to go" plain); lowest/highest; and a foot with a per-product generated barcode and SKU line (`#0001 · EUR · checked 2 hours ago`). Name lines are reserved so labels on a rail stay level.
 - **Reprint:** when a price changes the price slides in from above behind a clip (560ms).
 - **Scanning:** a laser line sweeps back and forth while checking.
 - **Void:** a failed check hatches the stock, fades the price to faded-print grey and adds a "Last read" ink tag; a void-tape notice under the rail explains why. The last known price stays on the label.

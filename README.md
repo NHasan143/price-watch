@@ -97,6 +97,7 @@ Key design decisions:
 | Node.js              | 20.19+ or 22.12+        | Required by Vite 8                                                 |
 | Visual Studio Code   | recent                  | With the extensions listed below                                   |
 | Apache Maven         | 3.9+ (optional)         | Only for the command line, or local via `setup.sh` ↓              |
+| Google Chrome        | recent (optional)       | For JavaScript-rendered shops; downloaded automatically if missing |
 
 #### Optional: project-local JDK and Maven (no global install)
 
@@ -168,6 +169,8 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 | `pricewatch.scheduler.delay-between-requests-ms` | `1500`                  | Pause between two products, to be polite to shops                    |
 | `pricewatch.scraper.timeout-ms`              | `10000`                     | HTTP timeout when downloading a page                                 |
 | `pricewatch.scraper.user-agent`              | desktop Chrome string       | User-Agent sent to shops                                             |
+| `pricewatch.renderer.enabled`               | `true`                      | Fall back to headless Chrome for JavaScript-rendered pages           |
+| `pricewatch.renderer.timeout-ms`            | `30000`                     | How long to wait for a rendered page to show its price               |
 | `pricewatch.cors.allowed-origins`            | `http://localhost:5173`     | Only needed when the frontend is hosted on another origin            |
 | `pricewatch.alert.to`                        | empty                       | Recipient of alert emails (empty = log only)                         |
 | `pricewatch.alert.from`                      | `pricewatch@localhost`      | Sender address of alert emails                                       |
@@ -202,14 +205,18 @@ and start the backend with the `local` profile: set `SPRING_PROFILES_ACTIVE=loca
 ## How price detection works
 
 When a product is added or re-checked, `PriceScraper` downloads the page with Jsoup and asks each
-`PriceExtractor` in order until one returns a price:
+`PriceExtractor` in order until one returns a price. If none does, or the shop refuses the plain download, the
+page is loaded again in headless Chrome and the same extractors run on the rendered page, so prices that
+JavaScript puts on the page (Daraz, for example) are read too:
 
 1. **CSS selector** – only if you supplied one under *Advanced* in the form (for example `.product-price .amount`).
 2. **schema.org JSON-LD** – `<script type="application/ld+json">` blocks containing an `Offer`,
    `AggregateOffer` or `priceSpecification`, including nested `@graph` structures.
 3. **Microdata** – elements with `itemprop="price"`.
 4. **Meta tags** – `product:sale_price:amount`, `product:price:amount`, `og:price:amount` and related tags.
-   Checked last because some shops leave the regular price here during a sale.
+   Checked after microdata because some shops leave the regular price here during a sale.
+5. **Price under the title** – for shops that publish no structured data at all: the first price with a currency
+   symbol or code shown after the product's `<h1>`. Crossed-out, "was", EMI and per-month prices are skipped.
 
 `PriceParser` turns the text into a number. It understands `$1,299.99`, `1.299,99 €`, `Rs. 1,200`, `12,50` and
 similar formats, and detects the currency from an ISO code or symbol. The page title and `og:image` are used for
@@ -324,22 +331,23 @@ Network access is mocked in tests, so they run offline.
 | UI shows "Cannot reach the PriceWatch API"                     | The backend is not running, or not on port 8080. Start it and press **Retry**.                           |
 | `Port 8080 was already in use`                                 | Stop the other process, or set `server.port` and update the proxy target in `frontend/vite.config.ts`.   |
 | `Database may be already in use` (H2 lock)                     | Only one backend instance can open `backend/data/`. Stop the other instance.                             |
-| "Could not find a price on that page"                          | The shop probably renders prices with JavaScript. Add a CSS selector under *Advanced*, or try another page. |
+| "Could not find a price on that page"                          | PriceWatch already tried headless Chrome. Make sure the link opens a single product, or add a CSS selector under *Advanced*. |
 | "The store answered with HTTP 403"                             | The shop blocks automated requests. It cannot be tracked with a plain HTTP fetch.                        |
 | `Unsupported class file major version` or Java errors in VS Code | Make sure a JDK 21+ is selected (`Java: Configure Java Runtime`).                                      |
 | Vite refuses to start                                          | Upgrade Node.js to 20.19+ or 22.12+.                                                                     |
 
 ## Limitations
 
-- Pages that build their price only in the browser with JavaScript cannot be read by a plain HTTP fetch.
-  A headless browser could be added as another `PriceExtractor`.
+- Pages that build their price with JavaScript are read with headless Chrome, which takes a few seconds per
+  page and more memory than a plain download. Pages behind a login, a CAPTCHA or a region block still cannot be
+  read.
 - Many large retailers forbid automated access in their terms of service or block bots. Check a store's terms
   before tracking it, and keep the check interval modest.
 - PriceWatch is a single-user tool with no authentication. Do not expose it to the internet as it is.
 
 ## Roadmap
 
-- [ ] Headless-browser extractor for JavaScript-rendered shops
+- [x] Headless-browser fallback for JavaScript-rendered shops
 - [ ] Telegram / Discord / webhook notifications
 - [ ] User accounts and per-user product lists
 - [ ] Currency conversion and multi-store comparison for the same product

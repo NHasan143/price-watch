@@ -53,6 +53,7 @@ export function AddProductForm({ onCreated }: Props) {
             <label className="blank-field blank-url">
               <span className="blank-caption">Product page link</span>
               <input
+                id="product-url"
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
