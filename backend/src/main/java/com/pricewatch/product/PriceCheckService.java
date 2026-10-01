@@ -7,17 +7,23 @@ import com.pricewatch.scraper.ScrapeFailedException;
 import com.pricewatch.scraper.ScrapeResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
 /**
  * Core workflow: visit the product page, store the price, and decide whether to send an alert.
  * The network call happens outside any database transaction; only the bookkeeping is transactional.
+ *
+ * <p>A check that fails for a temporary reason (timeout, server error, rate limit) is tried again
+ * ahead of the regular schedule, waiting twice as long each time: 15, 30, 60 and 120 minutes by
+ * default. A shop that blocks automated checks is not: it is left to the regular schedule.
  */
 @Service
 public class PriceCheckService {
@@ -29,18 +35,24 @@ public class PriceCheckService {
     private final PriceRecordRepository records;
     private final AlertService alerts;
     private final TransactionTemplate transaction;
+    private final Duration firstRetryDelay;
+    private final int maxRetries;
 
     public PriceCheckService(
             PriceScraper scraper,
             ProductRepository products,
             PriceRecordRepository records,
             AlertService alerts,
-            TransactionTemplate transaction) {
+            TransactionTemplate transaction,
+            @Value("${pricewatch.scheduler.retry.first-delay-minutes:15}") long firstRetryDelayMinutes,
+            @Value("${pricewatch.scheduler.retry.max-retries:4}") int maxRetries) {
         this.scraper = scraper;
         this.products = products;
         this.records = records;
         this.alerts = alerts;
         this.transaction = transaction;
+        this.firstRetryDelay = Duration.ofMinutes(firstRetryDelayMinutes);
+        this.maxRetries = maxRetries;
     }
 
     private enum Alert { NONE, PRICE_DROP, BACK_IN_STOCK }
@@ -78,8 +90,8 @@ public class PriceCheckService {
             ScrapeResult result = scraper.scrape(product.getUrl(), product.getCssSelector());
             return storeSuccess(id, result);
         } catch (ScrapeFailedException e) {
-            log.warn("Price check failed for product {} ({}): {}", id, product.getUrl(), e.getMessage());
-            return storeFailure(id, e.getMessage());
+            log.warn("Price check failed for product {} ({}, {}): {}", id, product.getUrl(), e.getReason(), e.getMessage());
+            return storeFailure(id, e);
         }
     }
 
@@ -103,13 +115,22 @@ public class PriceCheckService {
         return outcome.product();
     }
 
-    private Product storeFailure(Long id, String message) {
+    private Product storeFailure(Long id, ScrapeFailedException failure) {
         return Objects.requireNonNull(transaction.execute(status -> {
             Product product = products.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
-            product.setLastError(message);
-            product.setLastCheckedAt(Instant.now());
+            Instant now = Instant.now();
+            product.recordFailure(failure.getMessage(), failure.getReason(), now,
+                    nextRetry(failure.getReason(), product.getFailedChecks() + 1, now));
             return products.save(product);
         }));
+    }
+
+    /** When to try a failed check again, or null to wait for the regular schedule. */
+    private Instant nextRetry(ScrapeFailedException.Reason reason, int failedChecks, Instant now) {
+        if (reason != ScrapeFailedException.Reason.TEMPORARY || failedChecks > maxRetries) {
+            return null;
+        }
+        return now.plus(firstRetryDelay.multipliedBy(1L << (failedChecks - 1)));
     }
 
     /**
@@ -122,7 +143,7 @@ public class PriceCheckService {
         product.setCurrentPrice(result.price());
         product.setAvailability(result.availability());
         product.setLastCheckedAt(Instant.now());
-        product.setLastError(null);
+        product.clearFailure();
         if (result.currency() != null) {
             product.setCurrency(result.currency());
         }

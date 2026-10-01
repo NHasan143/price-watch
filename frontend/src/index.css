@@ -715,7 +715,30 @@ input[type='number']::-webkit-outer-spin-button {
 }
 
 .notice .icon {
+  flex: none;
   margin-top: 1px;
+}
+
+.notice-body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notice-title {
+  font-weight: 750;
+  font-stretch: 92%;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere; /* long shop hosts */
+}
+
+/* what happens next, torn off below a perforation like the rest of the label stock */
+.notice-next {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--hair-strong);
+  color: var(--ink-2);
 }
 
 .notice-banner {

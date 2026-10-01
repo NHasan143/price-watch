@@ -2,8 +2,10 @@ import { useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { api, errorMessage } from '../api/client'
 import type { Product } from '../api/types'
+import { failureCopy } from '../utils/failure'
 import { formatMoney, hostOf, statusOf, timeAgo } from '../utils/format'
 import { Barcode } from './Barcode'
+import { FailureNotice } from './FailureNotice'
 import { Icon } from './Icon'
 import { LabelPrice } from './LabelPrice'
 
@@ -38,6 +40,7 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
   const currency = product.currency
   const gap = product.currentPrice === null ? null : product.currentPrice - product.targetPrice
   const nameId = `product-${product.id}-name`
+  const failure = product.lastError ? failureCopy(product) : null
 
   async function checkNow() {
     setBusy('check')
@@ -216,13 +219,14 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
           </div>
         </div>
 
-        {product.lastError && (
-          <p className="notice notice-void" role="alert">
-            <Icon name="alert" size={16} />
-            <span>
-              <strong>Last check failed.</strong> {product.lastError} The price shown is the last one we read.
-            </span>
-          </p>
+        {product.lastError && failure && (
+          <FailureNotice
+            icon={failure.icon}
+            title={failure.title}
+            detail={product.lastError}
+            next={failure.next}
+            role="status"
+          />
         )}
         {error && (
           <p className="notice notice-void" role="alert">

@@ -23,6 +23,54 @@ class ProductImageFinderTest {
     }
 
     @Test
+    void readsAmazonsFullSizeLandingImage() {
+        // Trimmed from amazon.com/dp/B00593T928: no og:image, JSON-LD or microdata on the page.
+        assertThat(find("""
+                <div id="imgTagWrapperId" class="imgTagWrapper">
+                <img alt="UGG Men's Neumel Chukka Boots"
+                     src="https://m.media-amazon.com/images/I/61OkMZ8AVsL._AC_SY395_SX395_QL70_ML2_.jpg"
+                     data-old-hires="https://m.media-amazon.com/images/I/61OkMZ8AVsL._AC_SL1500_.jpg"
+                     data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/61OkMZ8AVsL._AC_SY395_.jpg&quot;:[395,223]}"
+                     id="landingImage"></div>
+                """)).isEqualTo("https://m.media-amazon.com/images/I/61OkMZ8AVsL._AC_SL1500_.jpg");
+    }
+
+    @Test
+    void picksTheLargestAmazonImageWhenThereIsNoHiRes() {
+        assertThat(find("""
+                <img id="landingImage" data-old-hires=""
+                     src="data:image/gif;base64,R0lGODlhAQABAAAAACw="
+                     data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/a._SY355_.jpg&quot;:[355,277],
+                       &quot;https://m.media-amazon.com/images/I/a._SX679_.jpg&quot;:[870,679],
+                       &quot;https://m.media-amazon.com/images/I/a._SY450_.jpg&quot;:[450,351]}">
+                """)).isEqualTo("https://m.media-amazon.com/images/I/a._SX679_.jpg");
+    }
+
+    @Test
+    void readsAmazonBookCover() {
+        assertThat(find("""
+                <img id="imgBlkFront" src="https://m.media-amazon.com/images/I/book._SY160_.jpg"
+                     data-a-dynamic-image="{&quot;https://m.media-amazon.com/images/I/book._SY466_.jpg&quot;:[300,466]}">
+                """)).isEqualTo("https://m.media-amazon.com/images/I/book._SY466_.jpg");
+    }
+
+    @Test
+    void readsWooCommerceGalleryImage() {
+        assertThat(find("""
+                <div class="woocommerce-product-gallery__image">
+                <img src="/wp-content/uploads/lamp-600x600.jpg" data-large_image="/wp-content/uploads/lamp.jpg"></div>
+                """)).isEqualTo("https://shop.test/wp-content/uploads/lamp.jpg");
+    }
+
+    @Test
+    void skipsAnEmptyImageTagInsteadOfUsingThePageUrl() {
+        assertThat(find("""
+                <head><meta property="og:image" content="">
+                <meta name="twitter:image" content="https://cdn.test/tw.jpg"></head>
+                """)).isEqualTo("https://cdn.test/tw.jpg");
+    }
+
+    @Test
     void readsTwitterCardImage() {
         assertThat(find("<head><meta name=\"twitter:image\" content=\"https://cdn.test/tw.jpg\"></head>"))
                 .isEqualTo("https://cdn.test/tw.jpg");

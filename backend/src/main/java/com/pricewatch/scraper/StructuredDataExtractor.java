@@ -22,7 +22,7 @@ import java.util.Optional;
  * tags during a sale.
  *
  * <p>Availability is read from the same offer as the price when it has one; otherwise from the
- * page's microdata ({@code itemprop="availability"}) or meta tags ({@code product:availability}).
+ * rest of the page's structured data ({@link AvailabilityDetector#fromStructuredData}).
  */
 @Component
 @Order(2)
@@ -35,7 +35,6 @@ public class StructuredDataExtractor implements PriceExtractor {
             List.of("product:sale_price:amount", "product:price:amount", "og:price:amount");
     private static final List<String> META_CURRENCY_KEYS =
             List.of("product:sale_price:currency", "product:price:currency", "og:price:currency");
-    private static final List<String> META_AVAILABILITY_KEYS = List.of("product:availability", "og:availability");
 
     private final ObjectMapper mapper;
 
@@ -54,28 +53,8 @@ public class StructuredDataExtractor implements PriceExtractor {
                 .or(() -> fromMicrodata(document))
                 .or(() -> fromMetaTags(document))
                 .map(found -> found.availability() == Availability.UNKNOWN
-                        ? found.withAvailability(pageAvailability(document))
+                        ? found.withAvailability(AvailabilityDetector.fromStructuredData(document))
                         : found);
-    }
-
-    /** Availability published outside the offer the price came from. */
-    private static Availability pageAvailability(Document document) {
-        Element microdata = document.selectFirst("[itemprop=availability]");
-        if (microdata != null) {
-            // usually <link itemprop="availability" href="https://schema.org/InStock">
-            String raw = microdata.hasAttr("href") ? microdata.attr("href") : valueOf(microdata);
-            Availability availability = Availability.parse(raw);
-            if (availability != Availability.UNKNOWN) {
-                return availability;
-            }
-        }
-        for (String key : META_AVAILABILITY_KEYS) {
-            Availability availability = Availability.parse(metaContent(document, key));
-            if (availability != Availability.UNKNOWN) {
-                return availability;
-            }
-        }
-        return Availability.UNKNOWN;
     }
 
     // ---- JSON-LD -------------------------------------------------------------------------
@@ -142,7 +121,10 @@ public class StructuredDataExtractor implements PriceExtractor {
             for (JsonNode child : offer) {
                 Optional<ExtractedPrice> found = readOffer(child, depth + 1);
                 if (found.isPresent()) {
-                    return found;
+                    // The price comes from the first offer, but the product can be bought if any
+                    // offer can: shops list one offer per size, and the first size may be sold out.
+                    Availability all = AvailabilityDetector.ofOffers(offer);
+                    return Optional.of(all == Availability.UNKNOWN ? found.get() : found.get().withAvailability(all));
                 }
             }
             return Optional.empty();

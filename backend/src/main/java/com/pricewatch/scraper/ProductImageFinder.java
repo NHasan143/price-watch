@@ -12,8 +12,9 @@ import java.util.Optional;
 /**
  * Finds the product photo for the card. Tries what shops publish for link previews and search
  * engines first (Open Graph, Twitter card, image_src, schema.org JSON-LD and microdata), then the
- * photo headless Chrome marked as the largest image near the top of the page, for shops such as
- * Best Buy that publish none of those.
+ * main gallery image of shops that publish none of those but mark it in the HTML (Amazon,
+ * WooCommerce), then the photo headless Chrome marked as the largest image near the top of the
+ * page, for shops such as Best Buy.
  */
 @Component
 public class ProductImageFinder {
@@ -38,18 +39,59 @@ public class ProductImageFinder {
                 .or(() -> fromJsonLd(document))
                 .or(() -> attributeUrl(document, "[itemprop=image][content]", "content"))
                 .or(() -> attributeUrl(document, "img[itemprop=image]", "src"))
+                .or(() -> fromGallery(document))
                 .or(() -> attributeUrl(document, "img[" + HERO_ATTRIBUTE + "]", "src"))
                 .orElse(null);
     }
 
     private static Optional<String> attributeUrl(Document document, String selector, String attribute) {
         for (Element element : document.select(selector)) {
-            Optional<String> url = usable(element.absUrl(attribute));
+            Optional<String> url = usable(absolute(element, attribute));
             if (url.isPresent()) {
                 return url;
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Amazon's main image ({@code #landingImage}, or {@code #imgBlkFront} for books): the full-size
+     * {@code data-old-hires}, else the largest size listed in {@code data-a-dynamic-image}, else the
+     * shown {@code src}. Then WooCommerce's {@code data-large_image}.
+     */
+    private Optional<String> fromGallery(Document document) {
+        for (Element image : document.select("img#landingImage, img#imgBlkFront")) {
+            Optional<String> url = usable(absolute(image, "data-old-hires"))
+                    .or(() -> largestDynamicImage(image).flatMap(raw -> usable(resolve(document, raw))))
+                    .or(() -> usable(absolute(image, "src")));
+            if (url.isPresent()) {
+                return url;
+            }
+        }
+        return attributeUrl(document, "img[data-large_image]", "data-large_image");
+    }
+
+    /** {@code data-a-dynamic-image} maps each image URL to its [width, height]. */
+    private Optional<String> largestDynamicImage(Element image) {
+        String json = image.attr("data-a-dynamic-image");
+        if (json.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            String best = null;
+            long bestArea = -1;
+            for (var entry : mapper.readTree(json).properties()) {
+                JsonNode size = entry.getValue();
+                long area = size.path(0).asLong() * size.path(1).asLong();
+                if (area > bestArea) {
+                    best = entry.getKey();
+                    bestArea = area;
+                }
+            }
+            return Optional.ofNullable(best);
+        } catch (JsonProcessingException e) {
+            return Optional.empty();
+        }
     }
 
     private Optional<String> fromJsonLd(Document document) {
@@ -130,6 +172,11 @@ public class ProductImageFinder {
         } catch (IllegalArgumentException e) {
             return raw;
         }
+    }
+
+    /** Like {@link Element#absUrl}, but a blank attribute stays blank instead of becoming the page's own URL. */
+    private static String absolute(Element element, String attribute) {
+        return element.attr(attribute).isBlank() ? "" : element.absUrl(attribute);
     }
 
     private static Optional<String> usable(String url) {

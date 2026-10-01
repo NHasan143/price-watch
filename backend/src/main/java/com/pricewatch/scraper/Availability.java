@@ -25,7 +25,8 @@ public enum Availability {
         }
         return switch (value.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "")) {
             case "instock", "instoreonly", "onlineonly", "limitedavailability", "available" -> IN_STOCK;
-            case "outofstock", "soldout", "discontinued", "unavailable" -> OUT_OF_STOCK;
+            case "outofstock", "soldout", "discontinued", "unavailable", "stockout", "notinstock",
+                 "currentlyunavailable", "temporarilyoutofstock" -> OUT_OF_STOCK;
             case "preorder", "presale", "backorder" -> PREORDER;
             default -> UNKNOWN;
         };

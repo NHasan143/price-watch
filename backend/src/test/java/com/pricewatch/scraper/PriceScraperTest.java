@@ -36,11 +36,18 @@ class PriceScraperTest {
     private final AtomicInteger renders = new AtomicInteger();
 
     private PriceScraper scraper(String plainHtml, String renderedHtml) {
-        PageFetcher fetcher = new PageFetcher(1000, "test") {
+        return scraper(plainHtml == null ? BLOCKED : null, plainHtml, renderedHtml);
+    }
+
+    private static final ScrapeFailedException BLOCKED = new ScrapeFailedException(
+            ScrapeFailedException.Reason.BLOCKED, "The shop refused the request (HTTP 403).");
+
+    private PriceScraper scraper(ScrapeFailedException fetchFailure, String plainHtml, String renderedHtml) {
+        PageFetcher fetcher = new PageFetcher(1000, "test", 1, 0, 0, millis -> { }) {
             @Override
             public Document fetch(String url) {
-                if (plainHtml == null) {
-                    throw new ScrapeFailedException("The store answered with HTTP 403. It may be blocking automated requests.");
+                if (fetchFailure != null) {
+                    throw fetchFailure;
                 }
                 return Jsoup.parse(plainHtml, url);
             }
@@ -83,14 +90,82 @@ class PriceScraperTest {
     void reportsTheOriginalFailureWhenTheBrowserCannotHelp() {
         assertThatThrownBy(() -> scraper(null, null).scrape(URL, null))
                 .isInstanceOf(ScrapeFailedException.class)
-                .hasMessageContaining("HTTP 403");
+                .hasMessageContaining("HTTP 403")
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.BLOCKED);
+    }
+
+    /** Cloudflare's interstitial, trimmed. */
+    private static final String CLOUDFLARE_CHALLENGE = """
+            <html><head><title>Just a moment...</title></head>
+            <body><div id="challenge-running">Checking your browser before accessing shop.test.</div>
+            <form id="challenge-form" action="/p/1?__cf_chl_f_tk=x" method="POST"></form></body></html>
+            """;
+
+    @Test
+    void saysTheShopIsBlockingWhenTheBrowserLandsOnABotCheck() {
+        assertThatThrownBy(() -> scraper(BLOCKED, null, CLOUDFLARE_CHALLENGE).scrape(URL, null))
+                .isInstanceOf(ScrapeFailedException.class)
+                .hasMessageContaining("Cloudflare bot check")
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.BLOCKED);
+    }
+
+    @Test
+    void saysTheShopIsBlockingWhenThePlainDownloadIsABotCheck() {
+        // Amazon answers 200 with a robot check instead of the product.
+        String robotCheck = """
+                <html><head><title>Robot Check</title></head><body>
+                <form action="/errors/validateCaptcha"><input name="field-keywords"></form></body></html>
+                """;
+
+        assertThatThrownBy(() -> scraper(null, robotCheck, null).scrape(URL, null))
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.BLOCKED);
+    }
+
+    @Test
+    void reportsBlockedWhenTheBrowserGetsAPageWithoutAPrice() {
+        assertThatThrownBy(() -> scraper(BLOCKED, null, PLAIN_HTML).scrape(URL, null))
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.BLOCKED);
+    }
+
+    @Test
+    void doesNotOpenTheBrowserForARemovedPage() {
+        ScrapeFailedException gone = new ScrapeFailedException(
+                ScrapeFailedException.Reason.PAGE_GONE, "The product page no longer exists (HTTP 404).");
+
+        assertThatThrownBy(() -> scraper(gone, null, RENDERED_HTML).scrape(URL, null))
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.PAGE_GONE);
+        assertThat(renders).hasValue(0);
+    }
+
+    @Test
+    void readsThePriceWhenTheBrowserGetsPastATemporaryFailure() {
+        ScrapeFailedException timeout = new ScrapeFailedException(
+                ScrapeFailedException.Reason.TEMPORARY, "The shop did not respond within 10 seconds.");
+
+        assertThat(scraper(timeout, null, RENDERED_HTML).scrape(URL, null).price())
+                .isEqualByComparingTo(new BigDecimal("4000"));
     }
 
     @Test
     void explainsWhenNoPriceIsFoundEvenAfterRendering() {
         assertThatThrownBy(() -> scraper(PLAIN_HTML, PLAIN_HTML).scrape(URL, null))
                 .isInstanceOf(ScrapeFailedException.class)
-                .hasMessageContaining("Could not find a price on that page");
+                .hasMessageContaining("Could not find a price on that page")
+                .extracting("reason").isEqualTo(ScrapeFailedException.Reason.NO_PRICE);
+    }
+
+    @Test
+    void readsStockStatusEvenWhenTheShopPublishesNoStructuredData() {
+        String page = """
+                <html><body><h1>Office Chair</h1><span class="price">৳ 4,000</span>
+                <button type="submit" disabled>Sold out</button></body></html>
+                """;
+
+        ScrapeResult bySelector = scraper(page, null).scrape(URL, ".price");
+        ScrapeResult byVisiblePrice = scraper(page, null).scrape(URL, null);
+
+        assertThat(bySelector.availability()).isEqualTo(Availability.OUT_OF_STOCK);
+        assertThat(byVisiblePrice.availability()).isEqualTo(Availability.OUT_OF_STOCK);
     }
 
     @Test

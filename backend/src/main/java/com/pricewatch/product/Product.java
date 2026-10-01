@@ -1,6 +1,7 @@
 package com.pricewatch.product;
 
 import com.pricewatch.scraper.Availability;
+import com.pricewatch.scraper.ScrapeFailedException.Reason;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -54,6 +55,19 @@ public class Product {
 
     @Column(length = 500)
     private String lastError;
+
+    /** Why the last check failed; null after a successful check. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private Reason lastErrorReason;
+
+    /** Checks that failed in a row since the last successful one. */
+    @Column(nullable = false)
+    @ColumnDefault("0") // lets the column be added to an existing database
+    private int failedChecks;
+
+    /** When a temporarily failed check is tried again, ahead of the regular schedule; null if not planned. */
+    private Instant nextRetryAt;
 
     /** True once an alert was sent for the current "below target" streak, so we do not spam. */
     @Column(nullable = false)
@@ -162,6 +176,35 @@ public class Product {
 
     public void setAvailability(Availability availability) {
         this.availability = availability;
+    }
+
+    public Reason getLastErrorReason() {
+        return lastErrorReason;
+    }
+
+    public int getFailedChecks() {
+        return failedChecks;
+    }
+
+    public Instant getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    /** Records a failed check and when (if at all) to try again before the regular schedule. */
+    public void recordFailure(String message, Reason reason, Instant checkedAt, Instant nextRetryAt) {
+        setLastError(message);
+        this.lastErrorReason = reason;
+        this.lastCheckedAt = checkedAt;
+        this.failedChecks++;
+        this.nextRetryAt = nextRetryAt;
+    }
+
+    /** Clears the failure state after a check that read a price. */
+    public void clearFailure() {
+        this.lastError = null;
+        this.lastErrorReason = null;
+        this.failedChecks = 0;
+        this.nextRetryAt = null;
     }
 
     public boolean isAlertSent() {

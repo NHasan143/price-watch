@@ -1,9 +1,37 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { api, errorMessage } from '../api/client'
+import { api, ApiError, errorMessage } from '../api/client'
 import type { Product } from '../api/types'
 import { Barcode } from './Barcode'
+import { FailureNotice } from './FailureNotice'
 import { Icon } from './Icon'
+import type { IconName } from './Icon'
+
+interface FormError {
+  icon: IconName
+  title?: string
+  detail: string
+  next?: string
+}
+
+function toFormError(error: unknown): FormError {
+  if (!(error instanceof ApiError) || !error.reason) {
+    return { icon: 'alert', detail: errorMessage(error) }
+  }
+  const base = { title: error.title, detail: error.message }
+  switch (error.reason) {
+    case 'BLOCKED':
+      return {
+        ...base,
+        icon: 'blocked',
+        next: 'PriceWatch can’t track this shop. If another shop sells the same product, try that link.',
+      }
+    case 'TEMPORARY':
+      return { ...base, icon: 'clock', next: 'Nothing was saved. Try again in a minute.' }
+    default:
+      return { ...base, icon: 'alert' }
+  }
+}
 
 interface Props {
   onCreated: (product: Product) => void
@@ -15,7 +43,7 @@ export function AddProductForm({ onCreated }: Props) {
   const [name, setName] = useState('')
   const [cssSelector, setCssSelector] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<FormError | null>(null)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -34,7 +62,7 @@ export function AddProductForm({ onCreated }: Props) {
       setName('')
       setCssSelector('')
     } catch (e) {
-      setError(errorMessage(e))
+      setError(toFormError(e))
     } finally {
       setSubmitting(false)
     }
@@ -44,7 +72,7 @@ export function AddProductForm({ onCreated }: Props) {
     <section className="printer" aria-labelledby="add-heading">
       <div className="printer-intro">
         <h2 id="add-heading">Track a product</h2>
-        <p>Paste a product page from any shop and the price you want to pay. PriceWatch reads the price the shop publishes and checks it again every few hours.</p>
+        <p>Paste a product page from any shop and the price you want to pay. PriceWatch reads the price the shop publishes and checks it again twice a day.</p>
       </div>
 
       <div className="printer-sheet">
@@ -121,12 +149,7 @@ export function AddProductForm({ onCreated }: Props) {
         </form>
       </div>
 
-      {error && (
-        <p className="notice notice-void" role="alert">
-          <Icon name="alert" size={16} />
-          <span>{error}</span>
-        </p>
-      )}
+      {error && <FailureNotice icon={error.icon} title={error.title} detail={error.detail} next={error.next} />}
     </section>
   )
 }

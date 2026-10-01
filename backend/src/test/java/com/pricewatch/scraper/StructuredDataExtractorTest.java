@@ -140,7 +140,7 @@ class StructuredDataExtractorTest {
     }
 
     @Test
-    void readsAvailabilityFromTheOfferWhosePriceWasUsed() {
+    void productIsInStockWhenAnyOfItsOffersIs() {
         Optional<ExtractedPrice> result = extract("""
                 <script type="application/ld+json">
                 {"@type":"Product","offers":[
@@ -151,7 +151,32 @@ class StructuredDataExtractorTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().price()).isEqualByComparingTo(new BigDecimal("20"));
-        assertThat(result.get().availability()).isEqualTo(Availability.PREORDER);
+        assertThat(result.get().availability()).isEqualTo(Availability.IN_STOCK);
+    }
+
+    @Test
+    void readsOnePerSizeOffersLikeKith() {
+        // Trimmed from kith.com: size 6 is sold out, 6.5 is not.
+        Optional<ExtractedPrice> result = extract("""
+                <script type="application/ld+json">
+                {"@context":"https://schema.org/","@type":"Product","offers":[
+                  {"@type":"Offer","sku":"98283115","availability":"https://schema.org/OutOfStock","price":190.0,"priceCurrency":"USD"},
+                  {"@type":"Offer","sku":"98283116","availability":"https://schema.org/InStock","price":190.0,"priceCurrency":"USD"}]}
+                </script>
+                """);
+
+        assertThat(result.get().availability()).isEqualTo(Availability.IN_STOCK);
+    }
+
+    @Test
+    void productIsSoldOutWhenEveryOfferIs() {
+        Optional<ExtractedPrice> result = extract("""
+                <script type="application/ld+json">
+                {"@type":"Product","offers":[{"price":"10","availability":"OutOfStock"},{"price":"10","availability":"SoldOut"}]}
+                </script>
+                """);
+
+        assertThat(result.get().availability()).isEqualTo(Availability.OUT_OF_STOCK);
     }
 
     @Test
