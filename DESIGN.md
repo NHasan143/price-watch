@@ -334,13 +334,16 @@ Wobbler red disc on a spring at the bay's bottom left: "ALMOST / amount / to go"
 - **Focus:** 28% sticker wash plus a doubled 2px ink underline (160ms). Elsewhere focus is a 2px outline at 2px offset in the local text color (light on the rail, ink on labels).
 
 ### Notices
-Label-stock slip, 3px, with a 6px hatched void-tape strip across the top and an alert icon. The page-level banner version carries a small ink Retry button.
+Label-stock slip, 3px, with a 6px hatched void-tape strip across the top and an icon. The page-level banner version carries a small ink Retry button.
+- **Failed check (under a label) and failed add (under the form):** three parts. A plain headline (750, 0.875rem, width 92%) that names what happened in the shopper's words ("startech.com.bd blocks automated checks", "Couldn't reach …"); the backend's evidence as body text ("The shop showed a Cloudflare bot check instead of the product page."); then, below a 1px dashed perforation, what happens next in ink-2 ("Trying again in 15 minutes. The price shown is the last one we read.").
+- **Icon by reason:** blocked (circle with a bar) for a shop that refuses automated checks, clock for a temporary failure that will be retried early, alert for everything else. The label itself stays voided with its "Last read" tag in every case.
+- Card notices are `role="status"` (they persist and refresh with polling); the add-form notice is `role="alert"`.
 
 ### History Panel
 A label-stock sheet that unrolls downward (420ms clip), with facts (uppercase captions over 800-weight values), an ink/label segmented Chart/Table switch, and a step chart: ink step line, dashed ink target line, sticker-tinted zone under the target, sticker-filled dots at or under target. The table is a receipt with dashed rules and sticker marks.
 
 ### Icons
-One authored set on a 24px grid, 1.75 stroke, round caps and joins, currentColor, used at 16 to 18px.
+One authored set on a 24px grid, 1.75 stroke, round caps and joins, currentColor, used at 16 to 18px. `clock` and `blocked` share the same 8.5px-radius circle.
 
 ## Do's and Don'ts
 

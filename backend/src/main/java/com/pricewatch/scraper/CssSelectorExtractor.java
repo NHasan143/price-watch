@@ -23,7 +23,7 @@ public class CssSelectorExtractor implements PriceExtractor {
         try {
             element = document.selectFirst(target.cssSelector());
         } catch (RuntimeException e) {
-            throw new ScrapeFailedException("The CSS selector '" + target.cssSelector() + "' is not valid.", e);
+            throw new ScrapeFailedException(ScrapeFailedException.Reason.INVALID, "The CSS selector '" + target.cssSelector() + "' is not valid.", e);
         }
         if (element == null) {
             return Optional.empty();

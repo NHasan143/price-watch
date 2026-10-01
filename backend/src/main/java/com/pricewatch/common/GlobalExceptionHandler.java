@@ -25,7 +25,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ScrapeFailedException.class)
     public ProblemDetail scrapeFailed(ScrapeFailedException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
-        problem.setTitle("Could not read the price");
+        problem.setTitle(switch (e.getReason()) {
+            case BLOCKED -> "The shop blocks automated price checks";
+            case TEMPORARY -> "The shop could not be reached";
+            case PAGE_GONE -> "The product page no longer exists";
+            case NO_PRICE, INVALID -> "Could not read the price";
+        });
+        problem.setProperty("reason", e.getReason());
         return problem;
     }
 

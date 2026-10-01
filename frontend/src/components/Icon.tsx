@@ -1,4 +1,17 @@
-export type IconName = 'link' | 'tag' | 'refresh' | 'history' | 'pencil' | 'trash' | 'external' | 'alert' | 'plus' | 'check' | 'close'
+export type IconName =
+  | 'link'
+  | 'tag'
+  | 'refresh'
+  | 'history'
+  | 'pencil'
+  | 'trash'
+  | 'external'
+  | 'alert'
+  | 'plus'
+  | 'check'
+  | 'close'
+  | 'clock'
+  | 'blocked'
 
 const PATHS: Record<IconName, string[]> = {
   link: ['M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1', 'M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1'],
@@ -12,6 +25,8 @@ const PATHS: Record<IconName, string[]> = {
   plus: ['M12 5v14', 'M5 12h14'],
   check: ['M5 12.5l4.5 4.5L19 7.5'],
   close: ['M6 6l12 12', 'M18 6L6 18'],
+  clock: ['M20.5 12a8.5 8.5 0 1 1-17 0a8.5 8.5 0 1 1 17 0', 'M12 7.5V12l3 2'],
+  blocked: ['M20.5 12a8.5 8.5 0 1 1-17 0a8.5 8.5 0 1 1 17 0', 'M6 6l12 12'],
 }
 
 /** One authored icon set: 24px grid, 1.75 stroke, round caps. */

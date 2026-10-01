@@ -28,7 +28,7 @@ It is self-hosted and keeps the full price history locally.
 ## Operating Context
 
 - Add a product: paste a URL, set a target ("alert me at or below"), optional name, optional CSS selector.
-- Prices are re-checked on a schedule (every 6 h by default) and on demand ("Check now").
+- Prices are re-checked on a schedule (every 12 h by default) and on demand ("Check now").
 - Alerts fire once when a price crosses the target and re-arm after it rises again; they are logged and, if SMTP
   is configured, emailed.
 - Shops are global: prices arrive in mixed currencies (USD, EUR, BDT, GBP …) side by side.

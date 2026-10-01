@@ -98,11 +98,37 @@ class ProductApiTest {
 
     @Test
     void reportsScrapeFailureAs422() throws Exception {
-        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException("Could not find a price"));
+        when(scraper.scrape(any(), any()))
+                .thenThrow(new ScrapeFailedException(ScrapeFailedException.Reason.NO_PRICE, "Could not find a price"));
 
         mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.detail").value("Could not find a price"));
+                .andExpect(jsonPath("$.detail").value("Could not find a price"))
+                .andExpect(jsonPath("$.reason").value("NO_PRICE"));
+    }
+
+    @Test
+    void saysPlainlyWhenTheShopBlocksAutomatedChecks() throws Exception {
+        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(
+                ScrapeFailedException.Reason.BLOCKED, "The shop showed a Cloudflare bot check instead of the product page."));
+
+        mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.title").value("The shop blocks automated price checks"))
+                .andExpect(jsonPath("$.reason").value("BLOCKED"));
+    }
+
+    @Test
+    void exposesFailureStateOfAProduct() throws Exception {
+        long id = createProduct();
+        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(
+                ScrapeFailedException.Reason.TEMPORARY, "The shop did not respond within 10 seconds."));
+
+        mvc.perform(post("/api/products/" + id + "/check"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.lastErrorReason").value("TEMPORARY"))
+                .andExpect(jsonPath("$.failedChecks").value(1))
+                .andExpect(jsonPath("$.nextRetryAt").isNotEmpty());
     }
 
     @Test

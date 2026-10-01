@@ -36,19 +36,27 @@ keeps the full price history, and notifies you when the price reaches your targe
 
 - **Track any product page.** Paste a URL and a target price. The page is read immediately, so a bad link
   is rejected up front instead of failing silently later.
-- **Automatic re-checks.** A scheduler visits every tracked product on a cron schedule (every 6 hours by
+- **Automatic re-checks.** A scheduler visits every tracked product on a cron schedule (every 12 hours by
   default), one page at a time with a delay between requests.
 - **Price history and chart.** Every check is stored. Each product shows its lowest and highest price and an
   interactive chart with your target as a reference line, plus a table view.
 - **Smart alerts.** You are alerted once when a price crosses your target, not on every check. The alert
   re-arms after the price rises above the target again. Alerts are logged and, if SMTP is configured, emailed.
-- **Back-in-stock alerts.** Availability (in stock, sold out, pre-order) is read from the same structured data
-  as the price and stored with every check. When a sold-out product is back in stock you get one alert, which
+- **Back-in-stock alerts.** Availability (in stock, sold out, pre-order) is read on every page, whichever way the
+  price was found: from structured data (a product counts as in stock if any size or variant is), from stock
+  labels such as Amazon's "In Stock" / "Currently unavailable", from the buy button ("Add to cart" vs "Sold
+  out" / "Notify me"), or from short status text near the product. Related-product carousels, reviews and
+  size pickers are ignored, and when the page gives no clear answer the status stays unknown rather than
+  guessing. It is stored with every check. When a sold-out product is back in stock you get one alert, which
   also says if it is at your price. Sold-out products are labelled on the card and in the history.
 - **Works with most shops out of the box.** Prices are read from structured data that shops already publish
   for search engines (schema.org JSON-LD, Open Graph meta tags, microdata). For other sites, give a CSS
   selector for the price element.
-- **Failure-tolerant.** If a check fails, the last known price is kept and the error is shown on the card.
+- **Failure-tolerant.** If a check fails, the last known price is kept and the card says why in plain words.
+  Timeouts, network errors, rate limits and server errors are retried with backoff: a few seconds apart within
+  the check, then again after 15, 30, 60 and 120 minutes. A shop that blocks automated checks (HTTP 403, or a
+  Cloudflare, DataDome, PerimeterX, Imperva, Akamai or CAPTCHA page) is reported as blocked and not asked again
+  early.
 - **Responsive, accessible UI.** Light and dark theme, keyboard friendly, chart with a text summary and table
   alternative.
 
@@ -134,7 +142,7 @@ Other launch options in the same dropdown:
 | --------------------------------------------- | -------------------------------------------------------------- |
 | Backend (Spring Boot)                         | Backend only, with debugger                                    |
 | Frontend (Vite)                               | Frontend only                                                  |
-| PriceWatch (fast re-checks)                   | Both, with prices re-checked every minute instead of every 6 h |
+| PriceWatch (fast re-checks)                   | Both, with prices re-checked every minute instead of every 12 h |
 
 Useful tasks (`Terminal > Run Task…`): `backend: test`, `frontend: build`, `frontend: lint`, `start everything`.
 
@@ -169,10 +177,15 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 | `server.port`                                | `8080`                      | Port of the REST API                                                 |
 | `spring.datasource.url`                      | `jdbc:h2:file:./data/pricewatch` | Database location (file is created in `backend/data/`)         |
 | `pricewatch.scheduler.enabled`               | `true`                      | Turn the background price checks on or off                           |
-| `pricewatch.scheduler.cron`                  | `0 0 */6 * * *`             | When to re-check (Spring cron: sec min hour day month weekday)       |
+| `pricewatch.scheduler.cron`                  | `0 0 */12 * * *`            | When to re-check (Spring cron: sec min hour day month weekday)       |
 | `pricewatch.scheduler.delay-between-requests-ms` | `1500`                  | Pause between two products, to be polite to shops                    |
+| `pricewatch.scheduler.retry.first-delay-minutes` | `15`                    | First early re-check after a temporary failure (then 30, 60, 120)    |
+| `pricewatch.scheduler.retry.max-retries`     | `4`                         | Early re-checks before waiting for the regular schedule again        |
 | `pricewatch.scraper.timeout-ms`              | `10000`                     | HTTP timeout when downloading a page                                 |
 | `pricewatch.scraper.user-agent`              | desktop Chrome string       | User-Agent sent to shops                                             |
+| `pricewatch.scraper.retry.max-attempts`      | `3`                         | Downloads per check for timeouts, network errors, HTTP 429 and 5xx   |
+| `pricewatch.scraper.retry.initial-backoff-ms`| `1000`                      | Wait before the second download; doubles each time                   |
+| `pricewatch.scraper.retry.max-backoff-ms`    | `8000`                      | Longest wait between downloads (a longer `Retry-After` is not waited) |
 | `pricewatch.renderer.enabled`               | `true`                      | Fall back to headless Chrome for JavaScript-rendered pages           |
 | `pricewatch.renderer.timeout-ms`            | `30000`                     | How long to wait for a rendered page to show its price               |
 | `pricewatch.cors.allowed-origins`            | `http://localhost:5173`     | Only needed when the frontend is hosted on another origin            |
@@ -326,6 +339,8 @@ The backend tests cover:
 - availability from JSON-LD offers, microdata and meta tags,
 - the alert rules (alert once per drop, re-arm after recovery, alert once on restock, keep the old price on
   scrape failure),
+- retries against a real local HTTP server (backoff, `Retry-After`, no retry when blocked), bot check
+  detection, and early re-checks after temporary failures,
 - the REST API end to end with MockMvc and an in-memory database.
 
 Network access is mocked in tests, so they run offline.
@@ -338,7 +353,8 @@ Network access is mocked in tests, so they run offline.
 | `Port 8080 was already in use`                                 | Stop the other process, or set `server.port` and update the proxy target in `frontend/vite.config.ts`.   |
 | `Database may be already in use` (H2 lock)                     | Only one backend instance can open `backend/data/`. Stop the other instance.                             |
 | "Could not find a price on that page"                          | PriceWatch already tried headless Chrome. Make sure the link opens a single product, or add a CSS selector under *Advanced*. |
-| "The store answered with HTTP 403"                             | The shop blocks automated requests. It cannot be tracked with a plain HTTP fetch.                        |
+| "… blocks automated checks"                                    | The shop refused the request or showed a bot check, even to headless Chrome. PriceWatch keeps the last price and tries again at the regular check; if every check is blocked, the shop cannot be tracked automatically. |
+| "Couldn't reach …"                                             | A timeout, network error or server error after several tries. The card shows when PriceWatch tries again. |
 | `Unsupported class file major version` or Java errors in VS Code | Make sure a JDK 21+ is selected (`Java: Configure Java Runtime`).                                      |
 | Vite refuses to start                                          | Upgrade Node.js to 20.19+ or 22.12+.                                                                     |
 

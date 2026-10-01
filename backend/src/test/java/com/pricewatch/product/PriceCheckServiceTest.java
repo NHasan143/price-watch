@@ -12,9 +12,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
@@ -171,17 +174,79 @@ class PriceCheckServiceTest {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
         Product product = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
-        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException("Store is down"));
+        when(scraper.scrape(any(), any())).thenThrow(temporary());
         Product checked = service.checkNow(product.getId());
 
         assertThat(checked.getLastError()).isEqualTo("Store is down");
+        assertThat(checked.getLastErrorReason()).isEqualTo(ScrapeFailedException.Reason.TEMPORARY);
         assertThat(checked.getCurrentPrice()).isEqualByComparingTo("120.00");
         assertThat(records.findByProductIdOrderByCheckedAtAsc(product.getId())).hasSize(1);
     }
 
+    private static ScrapeFailedException temporary() {
+        return new ScrapeFailedException(ScrapeFailedException.Reason.TEMPORARY, "Store is down");
+    }
+
+    private static Duration untilRetry(Product product) {
+        return Duration.between(Instant.now(), product.getNextRetryAt());
+    }
+
+    @Test
+    void temporaryFailureIsTriedAgainSoonWithDoublingDelays() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        when(scraper.scrape(any(), any())).thenThrow(temporary());
+
+        Product first = service.checkNow(id);
+        assertThat(first.getFailedChecks()).isEqualTo(1);
+        assertThat(untilRetry(first)).isBetween(Duration.ofMinutes(14), Duration.ofMinutes(15));
+
+        Product second = service.checkNow(id);
+        assertThat(second.getFailedChecks()).isEqualTo(2);
+        assertThat(untilRetry(second)).isBetween(Duration.ofMinutes(29), Duration.ofMinutes(30));
+
+        service.checkNow(id);
+        service.checkNow(id);
+        // the fifth failure in a row is past the 4 early retries: back to the regular schedule
+        Product fifth = service.checkNow(id);
+        assertThat(fifth.getFailedChecks()).isEqualTo(5);
+        assertThat(fifth.getNextRetryAt()).isNull();
+    }
+
+    @Test
+    void blockedShopIsNotTriedAgainEarly() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+
+        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(
+                ScrapeFailedException.Reason.BLOCKED, "The shop refused the request (HTTP 403)."));
+        Product checked = service.checkNow(id);
+
+        assertThat(checked.getLastErrorReason()).isEqualTo(ScrapeFailedException.Reason.BLOCKED);
+        assertThat(checked.getNextRetryAt()).isNull();
+    }
+
+    @Test
+    void successfulCheckClearsTheFailureState() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        when(scraper.scrape(any(), any())).thenThrow(temporary());
+        service.checkNow(id);
+
+        doReturn(priced("118.00")).when(scraper).scrape(any(), any());
+        Product checked = service.checkNow(id);
+
+        assertThat(checked.getLastError()).isNull();
+        assertThat(checked.getLastErrorReason()).isNull();
+        assertThat(checked.getFailedChecks()).isZero();
+        assertThat(checked.getNextRetryAt()).isNull();
+        assertThat(products.findByNextRetryAtLessThanEqualOrderByNextRetryAtAsc(Instant.now().plus(Duration.ofDays(1))))
+                .isEmpty();
+    }
+
     @Test
     void createProductPropagatesScrapeFailureAndSavesNothing() {
-        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException("No price"));
+        when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(ScrapeFailedException.Reason.NO_PRICE, "No price"));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
                         service.createProduct("x", "https://shop.test/p/1", null, new BigDecimal("10")))

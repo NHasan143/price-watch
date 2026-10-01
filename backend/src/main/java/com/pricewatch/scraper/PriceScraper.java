@@ -1,5 +1,6 @@
 package com.pricewatch.scraper;
 
+import com.pricewatch.scraper.ScrapeFailedException.Reason;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
@@ -14,6 +15,10 @@ import java.util.Optional;
  * price until one succeeds. When the plain download has no readable price, or the shop refuses it,
  * the page is loaded again in a headless browser ({@link PageRenderer}) so prices that JavaScript
  * puts on the page can be read too. Also collects the page title and image for display.
+ *
+ * <p>When no price turns up, the failure says why: the shop blocked us (an HTTP refusal or a bot
+ * check page, in either the plain download or the browser), the page could not be loaded, or the
+ * page loaded but had no readable price.
  */
 @Service
 public class PriceScraper {
@@ -36,7 +41,8 @@ public class PriceScraper {
 
     /**
      * @param cssSelector optional selector for the price element; null/blank uses automatic detection
-     * @throws ScrapeFailedException if the page cannot be loaded or contains no readable price
+     * @throws ScrapeFailedException if the page cannot be loaded or contains no readable price; its
+     *         {@link Reason} tells blocked shops apart from temporary failures
      */
     public ScrapeResult scrape(String url, String cssSelector) {
         ScrapeTarget target = new ScrapeTarget(url, cssSelector);
@@ -49,32 +55,53 @@ public class PriceScraper {
             fetchFailure = e;
         }
 
+        if (fetchFailure != null && fetchFailure.getReason() != Reason.BLOCKED
+                && fetchFailure.getReason() != Reason.TEMPORARY) {
+            throw fetchFailure; // a bad link or a removed page: a browser will not do better
+        }
+
         Optional<ExtractedPrice> extracted = document == null ? Optional.empty() : extract(document, target);
+        Document rendered = null;
         if (extracted.isEmpty()) {
             log.debug("No price in the plain download of {}; trying headless Chrome", url);
-            Optional<Document> rendered = renderer.render(url, page -> extract(page, target).isPresent());
-            if (rendered.isPresent()) {
-                Optional<ExtractedPrice> fromRendered = extract(rendered.get(), target);
+            rendered = renderer.render(url, page -> extract(page, target).isPresent()).orElse(null);
+            if (rendered != null) {
+                Optional<ExtractedPrice> fromRendered = extract(rendered, target);
                 if (fromRendered.isPresent() || document == null) {
-                    document = rendered.get();
+                    document = rendered;
                     extracted = fromRendered;
                 }
             }
         }
 
         if (extracted.isEmpty()) {
-            if (document == null && fetchFailure != null) {
-                throw fetchFailure;
-            }
-            throw new ScrapeFailedException(target.hasSelector()
-                    ? "Nothing matching the CSS selector '" + cssSelector + "' contained a readable price."
-                    : "Could not find a price on that page. Check that the link opens a single product; "
-                    + "if it does, add a CSS selector for the price element under Advanced.");
+            throw noPrice(target, fetchFailure, document, rendered);
         }
 
         ExtractedPrice price = extracted.get();
-        return new ScrapeResult(
-                price.price(), price.currency(), price.availability(), title(document), imageFinder.find(document));
+        // Read availability from the whole page whichever extractor found the price (a CSS selector,
+        // the visible price), so stock status works on shops without structured data too.
+        Availability availability = price.availability() != Availability.UNKNOWN
+                ? price.availability()
+                : AvailabilityDetector.detect(document);
+        return new ScrapeResult(price.price(), price.currency(), availability, title(document), imageFinder.find(document));
+    }
+
+    private static ScrapeFailedException noPrice(
+            ScrapeTarget target, ScrapeFailedException fetchFailure, Document document, Document rendered) {
+        Optional<String> botCheck = BotCheckDetector.detect(rendered).or(() -> BotCheckDetector.detect(document));
+        if (botCheck.isPresent()) {
+            return new ScrapeFailedException(Reason.BLOCKED, BotCheckDetector.describe(botCheck.get()));
+        }
+        // The browser may have got a page the shop refused to send to the plain download, but with no
+        // price on it the refusal is still the best explanation.
+        if (fetchFailure != null && (document == null || fetchFailure.getReason() == Reason.BLOCKED)) {
+            return fetchFailure;
+        }
+        return new ScrapeFailedException(Reason.NO_PRICE, target.hasSelector()
+                ? "Nothing matching the CSS selector '" + target.cssSelector() + "' contained a readable price."
+                : "Could not find a price on that page. Check that the link opens a single product; "
+                + "if it does, add a CSS selector for the price element under Advanced.");
     }
 
     private Optional<ExtractedPrice> extract(Document document, ScrapeTarget target) {

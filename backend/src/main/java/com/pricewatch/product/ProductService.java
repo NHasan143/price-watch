@@ -108,6 +108,9 @@ public class ProductService {
                 product.getAvailability(),
                 product.getLastCheckedAt(),
                 product.getLastError(),
+                product.getLastErrorReason(),
+                product.getFailedChecks(),
+                product.getNextRetryAt(),
                 product.getCreatedAt());
     }
 }
