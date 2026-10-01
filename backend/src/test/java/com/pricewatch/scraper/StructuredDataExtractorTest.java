@@ -127,6 +127,127 @@ class StructuredDataExtractorTest {
     }
 
     @Test
+    void readsAvailabilityFromJsonLdOffer() {
+        Optional<ExtractedPrice> result = extract("""
+                <script type="application/ld+json">
+                {"@type":"Product","offers":{"@type":"Offer","price":"49.90","priceCurrency":"EUR",
+                 "availability":"https://schema.org/OutOfStock"}}
+                </script>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().availability()).isEqualTo(Availability.OUT_OF_STOCK);
+    }
+
+    @Test
+    void readsAvailabilityFromTheOfferWhosePriceWasUsed() {
+        Optional<ExtractedPrice> result = extract("""
+                <script type="application/ld+json">
+                {"@type":"Product","offers":[
+                  {"@type":"Offer","price":"20","priceCurrency":"USD","availability":"http://schema.org/PreOrder"},
+                  {"@type":"Offer","price":"25","priceCurrency":"USD","availability":"http://schema.org/InStock"}]}
+                </script>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().price()).isEqualByComparingTo(new BigDecimal("20"));
+        assertThat(result.get().availability()).isEqualTo(Availability.PREORDER);
+    }
+
+    @Test
+    void readsOfferAvailabilityWhenPriceIsInPriceSpecification() {
+        Optional<ExtractedPrice> result = extract("""
+                <script type="application/ld+json">
+                {"@type":"Product","offers":{"@type":"Offer","availability":"InStock",
+                 "priceSpecification":{"@type":"UnitPriceSpecification","price":"9.99","priceCurrency":"GBP"}}}
+                </script>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().price()).isEqualByComparingTo(new BigDecimal("9.99"));
+        assertThat(result.get().availability()).isEqualTo(Availability.IN_STOCK);
+    }
+
+    @Test
+    void readsAvailabilityFromMicrodataLink() {
+        Optional<ExtractedPrice> result = extract("""
+                <div itemscope itemtype="https://schema.org/Offer">
+                  <meta itemprop="priceCurrency" content="USD">
+                  <span itemprop="price">19.99</span>
+                  <link itemprop="availability" href="https://schema.org/SoldOut">Sold out
+                </div>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().availability()).isEqualTo(Availability.OUT_OF_STOCK);
+    }
+
+    @Test
+    void readsAvailabilityFromMetaTag() {
+        // Trimmed from startech.com.bd: the availability meta tag holds plain text.
+        Optional<ExtractedPrice> result = extract("""
+                <head>
+                <meta property="product:price:amount" content="15700.0000" />
+                <meta property="product:price:currency" content="BDT" />
+                <meta property="product:availability" content="In Stock" />
+                </head>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().availability()).isEqualTo(Availability.IN_STOCK);
+    }
+
+    @Test
+    void readsSoldOutProductThatStillListsAPrice() {
+        // Trimmed from startech.com.bd/benq-gw2490-fhd-monitor: sold out, but the price is still published.
+        Optional<ExtractedPrice> result = extract("""
+                <head>
+                <meta property="product:availability" content="Out Of Stock" />
+                <meta property="product:price:amount" content="16000.0000" />
+                <meta property="product:price:currency" content="BDT" />
+                </head>
+                <body>
+                <div class="short-description" itemprop="offers" itemscope itemtype="http://schema.org/Offer">
+                  <link itemprop="availability" href="http://schema.org/OutOfStock"/>
+                  <link itemprop="itemCondition" href="http://schema.org/NewCondition">
+                  <meta itemprop="priceCurrency" content="BDT" />
+                  <meta itemprop="price" content="16000.0000" />
+                </div>
+                </body>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().price()).isEqualByComparingTo(new BigDecimal("16000"));
+        assertThat(result.get().availability()).isEqualTo(Availability.OUT_OF_STOCK);
+    }
+
+    @Test
+    void fallsBackToPageAvailabilityWhenOfferHasNone() {
+        Optional<ExtractedPrice> result = extract("""
+                <head>
+                <script type="application/ld+json">
+                {"@type":"Product","offers":{"@type":"Offer","price":"49.90","priceCurrency":"EUR"}}
+                </script>
+                <meta property="product:availability" content="out of stock">
+                </head>
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().availability()).isEqualTo(Availability.OUT_OF_STOCK);
+    }
+
+    @Test
+    void availabilityIsUnknownWhenPageDoesNotSay() {
+        Optional<ExtractedPrice> result = extract("""
+                <meta property="product:price:amount" content="10.00">
+                <meta property="product:availability" content="Call for price">
+                """);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().availability()).isEqualTo(Availability.UNKNOWN);
+    }
+
+    @Test
     void returnsEmptyWhenPageHasNoPrice() {
         assertThat(extract("<html><body><p>Hello</p></body></html>")).isEmpty();
     }

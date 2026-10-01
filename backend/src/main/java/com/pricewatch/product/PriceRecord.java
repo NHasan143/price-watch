@@ -1,7 +1,10 @@
 package com.pricewatch.product;
 
+import com.pricewatch.scraper.Availability;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -13,7 +16,7 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/** One observed price of a product at a point in time. */
+/** One observed price (and availability) of a product at a point in time. */
 @Entity
 @Table(name = "price_records")
 public class PriceRecord {
@@ -29,6 +32,11 @@ public class PriceRecord {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
+    /** Null for records saved before availability was tracked. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private Availability availability;
+
     @Column(nullable = false)
     private Instant checkedAt;
 
@@ -36,9 +44,10 @@ public class PriceRecord {
         // required by JPA
     }
 
-    public PriceRecord(Product product, BigDecimal price, Instant checkedAt) {
+    public PriceRecord(Product product, BigDecimal price, Availability availability, Instant checkedAt) {
         this.product = product;
         this.price = price;
+        this.availability = availability;
         this.checkedAt = checkedAt;
     }
 
@@ -48,6 +57,10 @@ public class PriceRecord {
 
     public BigDecimal getPrice() {
         return price;
+    }
+
+    public Availability getAvailability() {
+        return availability;
     }
 
     public Instant getCheckedAt() {

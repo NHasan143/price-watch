@@ -1,6 +1,7 @@
 package com.pricewatch.product;
 
 import com.pricewatch.alert.AlertService;
+import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.PriceScraper;
 import com.pricewatch.scraper.ScrapeFailedException;
 import com.pricewatch.scraper.ScrapeResult;
@@ -50,7 +51,7 @@ class ProductApiTest {
         records.deleteAll();
         products.deleteAll();
         when(scraper.scrape(any(), any()))
-                .thenReturn(new ScrapeResult(new BigDecimal("129.99"), "USD", "Test Headphones", null));
+                .thenReturn(new ScrapeResult(new BigDecimal("129.99"), "USD", Availability.IN_STOCK, "Test Headphones", null));
     }
 
     private static final String VALID_BODY = """
@@ -72,7 +73,8 @@ class ProductApiTest {
                 .andExpect(jsonPath("$.currentPrice").value(129.99))
                 .andExpect(jsonPath("$.targetPrice").value(100.0))
                 .andExpect(jsonPath("$.currency").value("USD"))
-                .andExpect(jsonPath("$.belowTarget").value(false));
+                .andExpect(jsonPath("$.belowTarget").value(false))
+                .andExpect(jsonPath("$.availability").value("IN_STOCK"));
     }
 
     @Test
@@ -129,7 +131,7 @@ class ProductApiTest {
     void checkNowAddsAnotherPricePoint() throws Exception {
         long id = createProduct();
         when(scraper.scrape(any(), any()))
-                .thenReturn(new ScrapeResult(new BigDecimal("119.00"), "USD", "Test Headphones", null));
+                .thenReturn(new ScrapeResult(new BigDecimal("119.00"), "USD", Availability.IN_STOCK, "Test Headphones", null));
 
         mvc.perform(post("/api/products/" + id + "/check"))
                 .andExpect(status().isOk())

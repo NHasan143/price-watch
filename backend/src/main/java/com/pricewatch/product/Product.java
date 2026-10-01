@@ -1,11 +1,15 @@
 package com.pricewatch.product;
 
+import com.pricewatch.scraper.Availability;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -43,12 +47,25 @@ public class Product {
 
     private Instant lastCheckedAt;
 
+    /** As of the last successful check; null for products added before availability was tracked. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private Availability availability;
+
     @Column(length = 500)
     private String lastError;
 
     /** True once an alert was sent for the current "below target" streak, so we do not spam. */
     @Column(nullable = false)
     private boolean alertSent;
+
+    /**
+     * True once the product was seen out of stock, until it is seen in stock again (which sends a
+     * back-in-stock alert). Checks that cannot read availability leave it unchanged.
+     */
+    @Column(nullable = false)
+    @ColumnDefault("false") // lets the column be added to an existing database
+    private boolean awaitingRestock;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -139,12 +156,28 @@ public class Product {
         this.lastError = lastError;
     }
 
+    public Availability getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(Availability availability) {
+        this.availability = availability;
+    }
+
     public boolean isAlertSent() {
         return alertSent;
     }
 
     public void setAlertSent(boolean alertSent) {
         this.alertSent = alertSent;
+    }
+
+    public boolean isAwaitingRestock() {
+        return awaitingRestock;
+    }
+
+    public void setAwaitingRestock(boolean awaitingRestock) {
+        this.awaitingRestock = awaitingRestock;
     }
 
     public Instant getCreatedAt() {

@@ -42,6 +42,9 @@ keeps the full price history, and notifies you when the price reaches your targe
   interactive chart with your target as a reference line, plus a table view.
 - **Smart alerts.** You are alerted once when a price crosses your target, not on every check. The alert
   re-arms after the price rises above the target again. Alerts are logged and, if SMTP is configured, emailed.
+- **Back-in-stock alerts.** Availability (in stock, sold out, pre-order) is read from the same structured data
+  as the price and stored with every check. When a sold-out product is back in stock you get one alert, which
+  also says if it is at your price. Sold-out products are labelled on the card and in the history.
 - **Works with most shops out of the box.** Prices are read from structured data that shops already publish
   for search engines (schema.org JSON-LD, Open Graph meta tags, microdata). For other sites, give a CSS
   selector for the price element.
@@ -83,7 +86,8 @@ Key design decisions:
   tries them in `@Order` until one finds a price. Supporting a new kind of store means adding one class.
 - **No network calls inside database transactions.** `PriceCheckService` scrapes first, then opens a short
   transaction to store the result, so a slow shop never holds a database connection.
-- **Alert de-duplication.** An `alertSent` flag on the product implements "notify once per drop".
+- **Alert de-duplication.** An `alertSent` flag on the product implements "notify once per drop", and an
+  `awaitingRestock` flag does the same for back-in-stock alerts.
 - **Errors as RFC 7807 problem details.** The API returns `application/problem+json`, and the UI shows the
   `detail` text to the user.
 
@@ -319,7 +323,9 @@ The backend tests cover:
 - price parsing across number formats and currencies,
 - each extractor against representative HTML (JSON-LD, `@graph`, aggregate offers, broken JSON, meta tags,
   microdata, CSS selectors, invalid selectors),
-- the alert rules (alert once per drop, re-arm after recovery, keep the old price on scrape failure),
+- availability from JSON-LD offers, microdata and meta tags,
+- the alert rules (alert once per drop, re-arm after recovery, alert once on restock, keep the old price on
+  scrape failure),
 - the REST API end to end with MockMvc and an in-memory database.
 
 Network access is mocked in tests, so they run offline.

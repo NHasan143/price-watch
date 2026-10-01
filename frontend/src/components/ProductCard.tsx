@@ -147,6 +147,8 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
               </div>
               <div className="label-price-slot">
                 {product.lastError && <span className="label-void-tag">Last read</span>}
+                {product.availability === 'OUT_OF_STOCK' && <span className="label-void-tag label-stamp-tag">Sold out</span>}
+                {product.availability === 'PREORDER' && <span className="label-void-tag">Pre-order</span>}
                 <LabelPrice
                 key={printCount}
                 value={product.currentPrice}

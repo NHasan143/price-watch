@@ -26,6 +26,7 @@ interface Props {
 interface ChartPoint {
   time: number
   price: number
+  soldOut: boolean
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -49,6 +50,7 @@ function PriceTooltip({
     <div className={`chart-tooltip${point.price <= targetPrice ? ' is-under' : ''}`}>
       <div className="chart-tooltip-price">{formatMoney(point.price, currency)}</div>
       <div className="chart-tooltip-time">{formatDateTime(new Date(point.time).toISOString())}</div>
+      {point.soldOut && <div className="chart-tooltip-time">Sold out</div>}
     </div>
   )
 }
@@ -104,7 +106,7 @@ export function PriceChart({ productId, productName, targetPrice, currency, vers
   }, [productId, version])
 
   const data: ChartPoint[] = useMemo(
-    () => (points ?? []).map((p) => ({ time: Date.parse(p.checkedAt), price: p.price })),
+    () => (points ?? []).map((p) => ({ time: Date.parse(p.checkedAt), price: p.price, soldOut: p.availability === 'OUT_OF_STOCK' })),
     [points],
   )
 
@@ -272,6 +274,9 @@ export function PriceChart({ productId, productName, targetPrice, currency, vers
                   <td className="num">
                     {formatMoney(point.price, currency)}
                     {point.price <= targetPrice && <span className="receipt-mark"> at your price</span>}
+                    {point.availability === 'OUT_OF_STOCK' && (
+                      <span className="receipt-mark receipt-mark-out"> sold out</span>
+                    )}
                   </td>
                 </tr>
               ))}

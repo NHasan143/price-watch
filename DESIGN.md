@@ -20,6 +20,8 @@ colors:
   sticker: "#ffd21f"
   wobbler: "#c8232c"
   laser: "#ff2b2b"
+  stamp: "#a8352f"
+  stamp-soft: "#fcecea"
   wall-dark: "#131517"
   wall-line-dark: "#2a2e32"
   wall-hover-dark: "#22262a"
@@ -116,6 +118,11 @@ components:
     textColor: "{colors.label}"
     rounded: "{rounded.tag}"
     padding: "1px 6px"
+  label-stamp-tag:
+    backgroundColor: "{colors.stamp-soft}"
+    textColor: "{colors.stamp}"
+    rounded: "{rounded.tag}"
+    padding: "1px 6px"
   sticker:
     backgroundColor: "{colors.sticker}"
     textColor: "{colors.ink}"
@@ -196,7 +203,7 @@ Light and dark are the same store with the lights changed. The wall, bays and ra
 **Key Characteristics:**
 - A slim graphite shelf strip (18px) with a glossy top edge, tucked over the bottom of each label; bays touch so the strips read as one continuous shelf edge. Never frame a label on all sides with graphite.
 - Light label stock with black ink in both themes; dark theme uses bone stock to avoid glare.
-- Three signal colors, each owning one state: sticker yellow (at or below target), wobbler red (within 10% of target), laser red (a check in progress).
+- Three signal colors, each owning one state: sticker yellow (at or below target), wobbler red (within 10% of target), laser red (a check in progress). A muted stamp red marks a sold-out product.
 - Failed checks void the label (hatched stock, "Last read" tag) instead of hiding the price.
 - One variable typeface; hierarchy by width and weight axes, tabular figures throughout.
 - Physical motion: sticker slap, price reprint, scanner sweep, history unroll, wobbler sway.
@@ -214,6 +221,9 @@ A neutral grey store (wall, bays, graphite rails) with light label stock, black 
 ### Tertiary
 - **Scanner Laser Red** (laser): the moving scan line with its red glow that sweeps a label while "Check now" runs. Nothing else.
 
+### Sold-Out Stamp
+- **Stamp Brick** (stamp) on **Stamp Blush** (stamp-soft): a red rubber-stamp "SOLD OUT" on label stock, a 1px inset outline at 40% brick. Deliberately calmer and warmer than wobbler red so the two never read as the same signal. Used only for the "Sold out" tag on a label and the "sold out" receipt mark in history. It sits on label stock, so it does not change by theme. 5.7:1 contrast.
+
 ### Neutral
 - **Thermal Label White** (label) and **Bone Label Stock** (label-bone): the label surface for labels, readouts, the add-form blank label, history panel and notices. Bone replaces white only in dark theme.
 - **Label Ink** (ink), **Ink Grey** (ink-2), **Faded Print** (ink-3): text on label stock, from price and names down to shop names, SKU codes and captions. Ink does not change between themes.
@@ -229,7 +239,7 @@ A neutral grey store (wall, bays, graphite rails) with light label stock, black 
 
 **The Ink Never Changes Rule.** Label stock stays light in both themes (white by day, bone #ecebe4 at night) and ink stays #141414. Only the wall, bays, rails and wall text change with the theme.
 
-**The One Signal Per State Rule.** Yellow is at target, wobbler red is within 10%, laser red is checking, hatched stock is a failed check. Never mix them or swap one for another.
+**The One Signal Per State Rule.** Yellow is at target, wobbler red is within 10%, laser red is checking, stamp red is sold out, hatched stock is a failed check. Never mix them or swap one for another.
 
 ## Typography
 
@@ -311,6 +321,7 @@ Label stock standing on the bay, tucked under the shelf strip: name block (conde
 - **Reprint:** when a price changes the price slides in from above behind a clip (560ms).
 - **Scanning:** a laser line sweeps back and forth while checking.
 - **Void:** a failed check hatches the stock, fades the price to faded-print grey and adds a "Last read" ink tag; a void-tape notice under the rail explains why. The last known price stays on the label.
+- **Sold out:** a stamp-red "Sold out" tag above the price (a plain ink "Pre-order" tag for pre-orders). The shop's listed price stays on the label.
 
 ### Markdown Sticker (signature)
 Sticker yellow, 7px, rotated -6deg at the bay's bottom right: "AT YOUR PRICE" plus "X under" or "Right on target". It slaps on (620ms: drops from above, overshoots to 0.97 scale, settles), staggered 90ms per bay.
