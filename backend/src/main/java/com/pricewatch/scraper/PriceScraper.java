@@ -73,7 +73,8 @@ public class PriceScraper {
         }
 
         ExtractedPrice price = extracted.get();
-        return new ScrapeResult(price.price(), price.currency(), title(document), imageFinder.find(document));
+        return new ScrapeResult(
+                price.price(), price.currency(), price.availability(), title(document), imageFinder.find(document));
     }
 
     private Optional<ExtractedPrice> extract(Document document, ScrapeTarget target) {

@@ -20,6 +20,9 @@ import java.util.Optional;
  * and Open Graph / product meta tags. Microdata comes before meta tags because it sits next to the
  * visible price, while shops often leave the regular (pre-discount) price in the {@code <head>} meta
  * tags during a sale.
+ *
+ * <p>Availability is read from the same offer as the price when it has one; otherwise from the
+ * page's microdata ({@code itemprop="availability"}) or meta tags ({@code product:availability}).
  */
 @Component
 @Order(2)
@@ -32,6 +35,7 @@ public class StructuredDataExtractor implements PriceExtractor {
             List.of("product:sale_price:amount", "product:price:amount", "og:price:amount");
     private static final List<String> META_CURRENCY_KEYS =
             List.of("product:sale_price:currency", "product:price:currency", "og:price:currency");
+    private static final List<String> META_AVAILABILITY_KEYS = List.of("product:availability", "og:availability");
 
     private final ObjectMapper mapper;
 
@@ -48,7 +52,30 @@ public class StructuredDataExtractor implements PriceExtractor {
     public Optional<ExtractedPrice> extract(Document document, ScrapeTarget target) {
         return fromJsonLd(document)
                 .or(() -> fromMicrodata(document))
-                .or(() -> fromMetaTags(document));
+                .or(() -> fromMetaTags(document))
+                .map(found -> found.availability() == Availability.UNKNOWN
+                        ? found.withAvailability(pageAvailability(document))
+                        : found);
+    }
+
+    /** Availability published outside the offer the price came from. */
+    private static Availability pageAvailability(Document document) {
+        Element microdata = document.selectFirst("[itemprop=availability]");
+        if (microdata != null) {
+            // usually <link itemprop="availability" href="https://schema.org/InStock">
+            String raw = microdata.hasAttr("href") ? microdata.attr("href") : valueOf(microdata);
+            Availability availability = Availability.parse(raw);
+            if (availability != Availability.UNKNOWN) {
+                return availability;
+            }
+        }
+        for (String key : META_AVAILABILITY_KEYS) {
+            Availability availability = Availability.parse(metaContent(document, key));
+            if (availability != Availability.UNKNOWN) {
+                return availability;
+            }
+        }
+        return Availability.UNKNOWN;
     }
 
     // ---- JSON-LD -------------------------------------------------------------------------
@@ -125,10 +152,11 @@ public class StructuredDataExtractor implements PriceExtractor {
         }
 
         String currency = PriceParser.normalizeCurrency(text(offer, "priceCurrency"));
+        Availability availability = Availability.parse(text(offer, "availability"));
         for (String field : List.of("price", "lowPrice")) {
             Optional<BigDecimal> price = PriceParser.parse(text(offer, field));
             if (price.isPresent()) {
-                return Optional.of(new ExtractedPrice(price.get(), currency));
+                return Optional.of(new ExtractedPrice(price.get(), currency, availability));
             }
         }
 
@@ -136,7 +164,10 @@ public class StructuredDataExtractor implements PriceExtractor {
         if (nested.isEmpty()) {
             nested = readOffer(offer.get("offers"), depth + 1);
         }
-        return nested.map(p -> new ExtractedPrice(p.price(), p.currency() != null ? p.currency() : currency));
+        return nested.map(p -> new ExtractedPrice(
+                p.price(),
+                p.currency() != null ? p.currency() : currency,
+                p.availability() != Availability.UNKNOWN ? p.availability() : availability));
     }
 
     private static String text(JsonNode node, String field) {

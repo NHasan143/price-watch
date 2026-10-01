@@ -77,7 +77,7 @@ public class ProductService {
             throw new ProductNotFoundException(id);
         }
         return records.findByProductIdOrderByCheckedAtAsc(id).stream()
-                .map(record -> new PricePointResponse(record.getCheckedAt(), record.getPrice()))
+                .map(record -> new PricePointResponse(record.getCheckedAt(), record.getPrice(), record.getAvailability()))
                 .toList();
     }
 
@@ -105,6 +105,7 @@ public class ProductService {
                 stats == null ? null : stats.getMinPrice(),
                 stats == null ? null : stats.getMaxPrice(),
                 product.isBelowTarget(),
+                product.getAvailability(),
                 product.getLastCheckedAt(),
                 product.getLastError(),
                 product.getCreatedAt());

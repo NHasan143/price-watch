@@ -1,6 +1,7 @@
 package com.pricewatch.alert;
 
 import com.pricewatch.product.Product;
+import com.pricewatch.scraper.Availability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,8 +15,9 @@ import java.math.BigDecimal;
 import java.util.Locale;
 
 /**
- * Tells the user that a product dropped to (or below) their target price. Always logs the alert;
- * also sends an email when SMTP ({@code spring.mail.*}) and {@code pricewatch.alert.to} are set.
+ * Tells the user that a product dropped to (or below) their target price, or is back in stock.
+ * Always logs the alert; also sends an email when SMTP ({@code spring.mail.*}) and
+ * {@code pricewatch.alert.to} are set.
  */
 @Service
 public class AlertService {
@@ -39,9 +41,32 @@ public class AlertService {
         String current = format(product.getCurrentPrice(), product.getCurrency());
         String target = format(product.getTargetPrice(), product.getCurrency());
         String subject = "Price drop: " + product.getName() + " is now " + current;
-        String body = product.getName() + " dropped to " + current + " (your target: " + target + ").\n\n"
-                + product.getUrl() + "\n";
+        String body = product.getName() + " dropped to " + current + " (your target: " + target + ").\n"
+                + (product.getAvailability() == Availability.OUT_OF_STOCK
+                        ? "It is sold out right now; you will get another alert when it is back in stock.\n"
+                        : "")
+                + "\n" + product.getUrl() + "\n";
+        send(subject, body);
+    }
 
+    public void sendBackInStock(Product product) {
+        String current = format(product.getCurrentPrice(), product.getCurrency());
+        String target = format(product.getTargetPrice(), product.getCurrency());
+        String subject;
+        String body;
+        if (product.isBelowTarget()) {
+            subject = "Back in stock at your price: " + product.getName() + " is " + current;
+            body = product.getName() + " is back in stock at " + current + ", at or below your target of "
+                    + target + ".\n\n" + product.getUrl() + "\n";
+        } else {
+            subject = "Back in stock: " + product.getName() + " at " + current;
+            body = product.getName() + " is back in stock at " + current + " (your target: " + target + ").\n\n"
+                    + product.getUrl() + "\n";
+        }
+        send(subject, body);
+    }
+
+    private void send(String subject, String body) {
         log.info("PRICE ALERT - {}", subject);
 
         JavaMailSender sender = mailSender.getIfAvailable();

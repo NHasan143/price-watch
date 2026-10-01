@@ -1,6 +1,7 @@
 package com.pricewatch.product;
 
 import com.pricewatch.alert.AlertService;
+import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.PriceScraper;
 import com.pricewatch.scraper.ScrapeFailedException;
 import com.pricewatch.scraper.ScrapeResult;
@@ -42,7 +43,9 @@ public class PriceCheckService {
         this.transaction = transaction;
     }
 
-    private record Outcome(Product product, boolean sendAlert) {
+    private enum Alert { NONE, PRICE_DROP, BACK_IN_STOCK }
+
+    private record Outcome(Product product, Alert alert) {
     }
 
     /**
@@ -57,16 +60,12 @@ public class PriceCheckService {
 
         Product product = new Product(resolveName(name, result, url), url, selector, targetPrice);
         Outcome outcome = Objects.requireNonNull(transaction.execute(status -> {
-            boolean alert = applyResult(product, result);
+            Alert alert = applyResult(product, result);
             Product saved = products.save(product);
-            records.save(new PriceRecord(saved, result.price(), saved.getLastCheckedAt()));
+            records.save(new PriceRecord(saved, result.price(), result.availability(), saved.getLastCheckedAt()));
             return new Outcome(saved, alert);
         }));
-
-        if (outcome.sendAlert()) {
-            alerts.sendPriceDrop(outcome.product());
-        }
-        return outcome.product();
+        return send(outcome);
     }
 
     /**
@@ -87,13 +86,19 @@ public class PriceCheckService {
     private Product storeSuccess(Long id, ScrapeResult result) {
         Outcome outcome = Objects.requireNonNull(transaction.execute(status -> {
             Product product = products.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
-            boolean alert = applyResult(product, result);
+            Alert alert = applyResult(product, result);
             Product saved = products.save(product);
-            records.save(new PriceRecord(saved, result.price(), saved.getLastCheckedAt()));
+            records.save(new PriceRecord(saved, result.price(), result.availability(), saved.getLastCheckedAt()));
             return new Outcome(saved, alert);
         }));
-        if (outcome.sendAlert()) {
-            alerts.sendPriceDrop(outcome.product());
+        return send(outcome);
+    }
+
+    private Product send(Outcome outcome) {
+        switch (outcome.alert()) {
+            case PRICE_DROP -> alerts.sendPriceDrop(outcome.product());
+            case BACK_IN_STOCK -> alerts.sendBackInStock(outcome.product());
+            case NONE -> { }
         }
         return outcome.product();
     }
@@ -108,12 +113,14 @@ public class PriceCheckService {
     }
 
     /**
-     * Copies a scrape result onto the product and updates the alert flag.
+     * Copies a scrape result onto the product and updates the alert flags. A restock and a drop
+     * below target on the same check are reported together as one back-in-stock alert.
      *
-     * @return true if this check crossed below the target price and an alert should be sent
+     * @return the alert this check should send
      */
-    private boolean applyResult(Product product, ScrapeResult result) {
+    private Alert applyResult(Product product, ScrapeResult result) {
         product.setCurrentPrice(result.price());
+        product.setAvailability(result.availability());
         product.setLastCheckedAt(Instant.now());
         product.setLastError(null);
         if (result.currency() != null) {
@@ -123,6 +130,16 @@ public class PriceCheckService {
             product.setImageUrl(result.imageUrl());
         }
 
+        boolean backInStock = updateRestockFlag(product, result.availability());
+        boolean droppedBelowTarget = updatePriceDropFlag(product);
+        if (backInStock) {
+            return Alert.BACK_IN_STOCK;
+        }
+        return droppedBelowTarget ? Alert.PRICE_DROP : Alert.NONE;
+    }
+
+    /** @return true if this check crossed below the target price */
+    private static boolean updatePriceDropFlag(Product product) {
         if (!product.isBelowTarget()) {
             product.setAlertSent(false);
             return false;
@@ -132,6 +149,24 @@ public class PriceCheckService {
         }
         product.setAlertSent(true);
         return true;
+    }
+
+    /**
+     * Remembers an out-of-stock reading until the product is in stock again, so a check in between
+     * that cannot read availability (or sees a pre-order) does not hide the restock.
+     *
+     * @return true if the product went from out of stock to in stock
+     */
+    private static boolean updateRestockFlag(Product product, Availability availability) {
+        if (availability == Availability.OUT_OF_STOCK) {
+            product.setAwaitingRestock(true);
+            return false;
+        }
+        if (availability == Availability.IN_STOCK && product.isAwaitingRestock()) {
+            product.setAwaitingRestock(false);
+            return true;
+        }
+        return false;
     }
 
     private static String resolveName(String requested, ScrapeResult result, String url) {

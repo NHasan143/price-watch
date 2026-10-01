@@ -1,6 +1,7 @@
 package com.pricewatch.product;
 
 import com.pricewatch.alert.AlertService;
+import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.PriceScraper;
 import com.pricewatch.scraper.ScrapeFailedException;
 import com.pricewatch.scraper.ScrapeResult;
@@ -46,7 +47,11 @@ class PriceCheckServiceTest {
     }
 
     private static ScrapeResult priced(String price) {
-        return new ScrapeResult(new BigDecimal(price), "USD", "Test Headphones", null);
+        return priced(price, Availability.UNKNOWN);
+    }
+
+    private static ScrapeResult priced(String price, Availability availability) {
+        return new ScrapeResult(new BigDecimal(price), "USD", availability, "Test Headphones", null);
     }
 
     @Test
@@ -94,6 +99,71 @@ class PriceCheckServiceTest {
         service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
         verify(alerts, times(1)).sendPriceDrop(any());
+    }
+
+    @Test
+    void alertsOnceWhenProductComesBackInStock() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
+        assertThat(service.checkNow(id).getAvailability()).isEqualTo(Availability.OUT_OF_STOCK);
+        service.checkNow(id);
+        verify(alerts, never()).sendBackInStock(any());
+
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
+        service.checkNow(id);
+        verify(alerts, times(1)).sendBackInStock(any());
+
+        // still in stock: no second email
+        service.checkNow(id);
+        verify(alerts, times(1)).sendBackInStock(any());
+        verify(alerts, never()).sendPriceDrop(any());
+
+        assertThat(records.findByProductIdOrderByCheckedAtAsc(id))
+                .extracting(PriceRecord::getAvailability)
+                .containsExactly(Availability.IN_STOCK, Availability.OUT_OF_STOCK, Availability.OUT_OF_STOCK,
+                        Availability.IN_STOCK, Availability.IN_STOCK);
+    }
+
+    @Test
+    void restockIsNotLostWhenAvailabilityIsUnreadableInBetween() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.UNKNOWN));
+        service.checkNow(id);
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
+        service.checkNow(id);
+
+        verify(alerts, times(1)).sendBackInStock(any());
+    }
+
+    @Test
+    void restockAndDropBelowTargetOnTheSameCheckSendOneAlert() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
+        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+
+        when(scraper.scrape(any(), any())).thenReturn(priced("95.00", Availability.IN_STOCK));
+        Product checked = service.checkNow(id);
+
+        assertThat(checked.isBelowTarget()).isTrue();
+        verify(alerts, times(1)).sendBackInStock(any());
+        verify(alerts, never()).sendPriceDrop(any());
+
+        // the drop was reported with the restock, so it is not sent again on the next check
+        when(scraper.scrape(any(), any())).thenReturn(priced("94.00", Availability.IN_STOCK));
+        service.checkNow(id);
+        verify(alerts, never()).sendPriceDrop(any());
+    }
+
+    @Test
+    void newProductThatIsInStockDoesNotSendRestockAlert() {
+        when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
+
+        service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
+
+        verify(alerts, never()).sendBackInStock(any());
     }
 
     @Test
