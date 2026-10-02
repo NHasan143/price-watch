@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-30T11:02:05+00:00",
+  "generatedAt": "2026-10-02T12:00:00+00:00",
   "title": "Design System: PriceWatch",
   "extensions": {
     "colorMeta": {
@@ -593,6 +593,11 @@
         "name": "scanner-glow",
         "value": "0 0 10px 3px rgba(255, 43, 43, 0.45)",
         "purpose": "Laser line while a check runs; the only colored glow."
+      },
+      {
+        "name": "pinned-avatar",
+        "value": "0 0 0 2px #ffffff, 0 2px 5px rgba(0,0,0,0.35)",
+        "purpose": "Account avatar on the aisle rail: white rim plus the readout drop. The 'Sign up' button carries the readout drop alone."
       }
     ],
     "motion": [
@@ -738,6 +743,22 @@
       "description": "Label-stock slip with hatched void tape, for failed checks and an unreachable API.",
       "html": "<p class=\"ds-notice\" role=\"alert\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 4l9 16H3z\"/><path d=\"M12 10v4\"/><path d=\"M12 17v.5\"/></svg><span><strong>Last check failed.</strong> The shop blocked the request. The price shown is the last one we read.</span></p>",
       "css": ".ds-notice{position:relative;display:flex;align-items:flex-start;gap:8px;max-width:360px;margin:0;padding:16px 12px 10px;border-radius:3px;background:var(--label,#fff);color:var(--ink,#141414);font-family:'Archivo Variable', 'Archivo', system-ui, sans-serif;font-size:.8125rem;line-height:1.45;box-shadow:0 2px 6px -2px rgba(0,0,0,.25)} .ds-notice::before{content:'';position:absolute;top:0;left:0;right:0;height:6px;border-radius:3px 3px 0 0;background:repeating-linear-gradient(-45deg,var(--ink,#141414) 0 6px,var(--label,#fff) 6px 12px)} .ds-notice svg{flex:none;margin-top:1px}"
+    },
+    {
+      "name": "Aisle Account Controls",
+      "kind": "button",
+      "refersTo": "button-sign-up",
+      "description": "Guest controls at the right of the aisle band: quiet 'Sign in' in rail text, 'Sign up' printed on white label stock with the readout drop (never sticker yellow). Both open Clerk's own card.",
+      "html": "<div class=\"ds-aisle-acct\"><button type=\"button\" class=\"ds-acct-btn ds-sign-in\">Sign in</button><button type=\"button\" class=\"ds-acct-btn ds-sign-up\">Sign up</button></div>",
+      "css": ".ds-aisle-acct{display:inline-flex;align-items:center;gap:6px;padding:18px 24px;background:var(--rail,#2a2e32);--focus:#eceeef} .ds-acct-btn{display:inline-flex;align-items:center;padding:8px 12px;border:1px solid transparent;border-radius:3px;background:transparent;font-family:'Archivo Variable', 'Archivo', system-ui, sans-serif;font-size:.875rem;font-weight:650;line-height:1.2;cursor:pointer;transition:background-color 150ms ease-out,color 150ms ease-out,transform 150ms cubic-bezier(.16,1,.3,1)} .ds-acct-btn:focus-visible{outline:2px solid #eceeef;outline-offset:2px} .ds-sign-in{color:#eceeef} .ds-sign-in:hover{background:var(--rail-hi,#3c4147)} .ds-sign-up{background:#fff;color:#141414;font-weight:750;box-shadow:0 2px 5px rgba(0,0,0,.35)} .ds-sign-up:hover{background:var(--hair,#e3e4e2);transform:translateY(-1px)} .ds-sign-up:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Guest Notice",
+      "kind": "card",
+      "refersTo": "notice",
+      "description": "Plain slip under a guest's (read once, untracked) label: no void tape, one line plus a small ink sign-up button that wraps under on narrow cards.",
+      "html": "<div class=\"ds-guest\" role=\"note\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0z\"/><path d=\"M8 8h.01\"/></svg><strong class=\"ds-guest-title\">Read once, not tracked yet</strong><button type=\"button\" class=\"ds-guest-btn\">Sign up to keep tracking</button></div>",
+      "css": ".ds-guest{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:360px;padding:10px 12px;border-radius:3px;background:var(--label,#fff);color:var(--ink,#141414);font-family:'Archivo Variable', 'Archivo', system-ui, sans-serif;font-size:.8125rem;line-height:1.45;box-shadow:0 2px 6px -2px rgba(0,0,0,.25)} .ds-guest svg{flex:none} .ds-guest-title{flex:1 1 12rem;min-width:0;font-size:.875rem;font-weight:750;font-stretch:92%;line-height:1.3} .ds-guest-btn{margin-left:auto;padding:6px 10px;border:1px solid transparent;border-radius:3px;background:var(--ink,#141414);color:#fff;font:inherit;font-size:.8125rem;font-weight:650;cursor:pointer;transition:background-color 150ms ease-out,transform 150ms cubic-bezier(.16,1,.3,1)} .ds-guest-btn:hover{background:#000;transform:translateY(-1px)} .ds-guest-btn:active{transform:translateY(1px)} .ds-guest-btn:focus-visible{outline:2px solid var(--ink,#141414);outline-offset:2px}"
     }
   ],
   "narrative": {
@@ -786,6 +807,11 @@
         "name": "The Lit From Above Rule",
         "body": "Shadows are soft, fall downward, and belong to physical objects. No hard offset shadows, no colored glows except the scanner.",
         "section": "elevation"
+      },
+      {
+        "name": "The Hosted Card Rule",
+        "body": "Sign-in and sign-up are Clerk's own stock card in a modal over the shelf, outside the PriceWatch system. It is themed only through Clerk's theme-editor variables (light and dark, `frontend/src/auth/appearance.ts`); the app never restyles its card, inputs, buttons or colors. Global input and focus rules are wrapped in `:where()` (zero specificity) so they cannot leak into it. Only what PriceWatch draws around it (the aisle controls, the avatar rim, the guest notice) belongs to the system.",
+        "section": "elevation"
       }
     ],
     "dos": [
@@ -794,6 +820,7 @@
       "**Do** use sticker yellow for at or below target, wobbler red for within 10% of target, laser red for an active check, and the hatched void label with a \"Last read\" tag for a failed check.",
       "**Do** keep bays touching (column-gap 0) and keep the 330px bay minimum in sync between index.css and `BAY_MIN_WIDTH` in App.tsx.",
       "**Do** separate label sections with 1px dashed perforation rules, not boxes.",
+      "**Do** leave Clerk's sign-in and sign-up card stock, themed only by its theme-editor variables, and keep global input and focus rules inside `:where()` so they never reach it.",
       "**Do** make motion physical and short (slap 620ms, reprint 560ms, unroll 420ms, controls 150 to 160ms) on `cubic-bezier(0.16, 1, 0.3, 1)`, and collapse it under reduced motion (the scanner stops centered)."
     ],
     "donts": [
@@ -804,7 +831,8 @@
       "**Don't** hide or blank the last known price when a check fails; void the label instead.",
       "**Don't** add a second typeface; use Archivo's width and weight axes.",
       "**Don't** use hard offset shadows or colored glows other than the scanner line.",
-      "**Don't** use emoji or glyph characters as icons; use the authored stroke set."
+      "**Don't** use emoji or glyph characters as icons; use the authored stroke set.",
+      "**Don't** restyle Clerk's hosted card with PriceWatch tokens or `.cl-*` overrides; the only exception is the 40px avatar rim in the aisle band."
     ]
   }
 }

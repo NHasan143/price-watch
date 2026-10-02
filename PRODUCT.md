@@ -42,7 +42,11 @@ It is self-hosted and keeps the full price history locally.
 - Actions: create, check now, edit target, delete, view history.
 - A check can fail (shop blocks the request, price rendered by JavaScript); the last known price is kept and the
   error shown.
-- No accounts, no multi-user features yet.
+- Guest first: anyone can add a product without an account and see its price once (read once, not tracked).
+- Accounts (sign in / sign up via Clerk): signing up keeps products tracked (checked twice a day) with email alerts
+  to the account; a guest's products move to the account on sign-up.
+- Data: products, price history and the accounts table are stored by PriceWatch on the owner's machine for now
+  (later their hosting); Clerk stores sign-in credentials.
 
 ## Evidence on Hand
 
