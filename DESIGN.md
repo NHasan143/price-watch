@@ -186,6 +186,22 @@ components:
     typography: "{typography.small}"
     rounded: "{rounded.control}"
     padding: "16px 12px 10px"
+  button-sign-in:
+    textColor: "{colors.text-dark}"
+    rounded: "{rounded.control}"
+    padding: "8px 12px"
+  button-sign-in-hover:
+    backgroundColor: "{colors.rail-hi}"
+  button-sign-up:
+    backgroundColor: "{colors.label}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "8px 12px"
+  button-sign-up-hover:
+    backgroundColor: "{colors.hair}"
+  account-avatar:
+    rounded: "{rounded.wobbler}"
+    size: "40px"
 ---
 
 # Design System: PriceWatch
@@ -271,7 +287,9 @@ The page is an aisle: a full-width graphite header band, then a centered store c
 
 The shelf is a grid of bays, `repeat(auto-fill, minmax(330px, 1fr))`, with a 48px row gap and **zero column gap**. Each bay is a 176px bay display above a rail, then a row of ghost actions. Opening history inserts a full-width row under the product's shelf row (pulled up 32px, with a label-stock notch pointing at the product), so nothing on the shelf moves sideways.
 
-The label printer is a two-column grid (intro 220 to 300px, blank label) that stacks under 900px; inside, the blank label is a two-by-two grid (link / price, name / submit) that stacks under 640px. Under 640px the three readouts become an equal three-column grid with short captions ("At target"), and filters scroll horizontally.
+The label printer is a two-column grid (intro 220 to 300px, blank label) that stacks under 900px; inside, the blank label is a two-by-two grid (link / price, name / submit) that stacks under 640px. Under 640px the three readouts become an equal three-column grid with short captions ("At target"), and filters scroll horizontally. The printer intro and the empty shelf's copy change with the account state (signed in, guest, accounts not configured); the layout does not.
+
+The aisle band's right side holds the readouts and then the account controls (12px 16px gap): "Sign in" and "Sign up" for a guest, the avatar once signed in, nothing when accounts are not configured. Under 640px the account controls move up onto the wordmark row (pushed to the right edge) and the readouts take the full row below. There is no account page: sign-in and sign-up open over the shelf (see the Hosted Card Rule).
 
 Spacing steps are 4, 8, 12, 16, 24, 36 and 48px, with tighter 1 to 3px nudges inside labels.
 
@@ -289,10 +307,13 @@ Depth is physical and soft: things lit from above cast short downward shadows. T
 - **Label lift** (`0 12px 22px -14px rgba(0,0,0,.5)`): a label standing on the bay panel.
 - **Stuck-on** (`box-shadow: 0 4px 8px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.2)`): the sticker. The wobbler uses `0 5px 10px rgba(0,0,0,0.25)`, readouts `0 2px 5px rgba(0,0,0,0.35)`.
 - **Loose sheet** (`box-shadow: 0 18px 32px -20px rgba(0,0,0,0.55)`): blank label and history panel.
+- **Pinned avatar** (`box-shadow: 0 0 0 2px #ffffff, 0 2px 5px rgba(0,0,0,0.35)`): the account avatar on the rail, a white rim plus the readout drop. The "Sign up" button carries the readout drop alone.
 - **Scanner glow** (`box-shadow: 0 0 10px 3px rgba(255,43,43,0.45)`): laser line only.
 
 ### Named Rules
 **The Lit From Above Rule.** Shadows are soft, fall downward, and belong to physical objects. No hard offset shadows, no colored glows except the scanner.
+
+**The Hosted Card Rule.** Sign-in and sign-up are Clerk's own stock card in a modal over the shelf, outside the PriceWatch system. It is themed only through Clerk's theme-editor variables (light and dark, `frontend/src/auth/appearance.ts`); the app never restyles its card, inputs, buttons or colors. Global input and focus rules are wrapped in `:where()` (zero specificity) so they cannot leak into it. Only what PriceWatch draws around it (the aisle controls, the avatar rim, the guest notice) belongs to the system.
 
 ## Shapes
 
@@ -307,6 +328,9 @@ Printed and plain: ink blocks on label stock, quiet text on the wall.
 - **Hover / Active:** ink goes to pure black and lifts 1px; active presses 1px down; 150ms with the house ease-out.
 - **Outline (on labels):** transparent with a perforation-grey border; hover fills with hairline grey.
 - **Ghost (bay actions):** wall-text-2 at 0.8125rem, 6px 8px; hover fills wall-hover. The open History toggle keeps that fill. Delete turns wobbler red on hover.
+- **Sign in (aisle band):** a quiet text button in rail text color (#eceeef), 0.875rem 650; hover fills rail highlight.
+- **Sign up (aisle band):** printed on white label stock like the readouts beside it: ink text, 750, readout drop; hover fills hairline grey and lifts 1px, active presses 1px down. Deliberately not sticker yellow (the Reserved Sticker Rule).
+- **Add form submit:** the large ink button reads "Check the price" for a guest and "Start tracking" for a signed-in account ("Reading the page…" while it works).
 - **Disabled:** 55% opacity.
 
 ### Chips (filters)
@@ -322,6 +346,7 @@ Label stock standing on the bay, tucked under the shelf strip: name block (conde
 - **Scanning:** a laser line sweeps back and forth while checking.
 - **Void:** a failed check hatches the stock, fades the price to faded-print grey and adds a "Last read" ink tag; a void-tape notice under the rail explains why. The last known price stays on the label.
 - **Sold out:** a stamp-red "Sold out" tag above the price (a plain ink "Pre-order" tag for pre-orders). The shop's listed price stays on the label.
+- **Guest (read once):** a product added without an account was read once and is not tracked: the SKU line reads "read once <time>", the bay has no "Check now" or "History" actions, and the guest notice sits under the rail.
 
 ### Markdown Sticker (signature)
 Sticker yellow, 7px, rotated -6deg at the bay's bottom right: "AT YOUR PRICE" plus "X under" or "Right on target". It slaps on (620ms: drops from above, overshoots to 0.97 scale, settles), staggered 90ms per bay.
@@ -332,12 +357,18 @@ Wobbler red disc on a spring at the bay's bottom left: "ALMOST / amount / to go"
 ### Inputs / Fields
 - **Style:** written on label stock. No box: 2px ink underline, transparent fill, 1.0625rem 600, faded-print placeholder. Captions are small uppercase labels above.
 - **Focus:** 28% sticker wash plus a doubled 2px ink underline (160ms). Elsewhere focus is a 2px outline at 2px offset in the local text color (light on the rail, ink on labels).
+- **Scope:** these input rules are zero-specificity (`:where()`) so they style PriceWatch's own fields only and never Clerk's hosted card.
 
 ### Notices
 Label-stock slip, 3px, with a 6px hatched void-tape strip across the top and an icon. The page-level banner version carries a small ink Retry button.
 - **Failed check (under a label) and failed add (under the form):** three parts. A plain headline (750, 0.875rem, width 92%) that names what happened in the shopper's words ("startech.com.bd blocks automated checks", "Couldn't reach …"); the backend's evidence as body text ("The shop showed a Cloudflare bot check instead of the product page."); then, below a 1px dashed perforation, what happens next in ink-2 ("Trying again in 15 minutes. The price shown is the last one we read.").
 - **Icon by reason:** blocked (circle with a bar) for a shop that refuses automated checks, clock for a temporary failure that will be retried early, alert for everything else. The label itself stays voided with its "Last read" tag in every case.
-- Card notices are `role="status"` (they persist and refresh with polling); the add-form notice is `role="alert"`.
+- **Guest limit (under the form):** when a guest reaches the product limit, the same failed-add notice carries a small ink "Sign up" button.
+- **Guest notice (under a guest's label):** a plain slip without void tape, since nothing failed: tag icon and one line ("Read once, not tracked yet", 750 headline weight) with a small ink "Sign up to keep tracking" button pushed right; on a narrow card the button wraps to its own line while the text keeps the icon's row. When accounts are not configured the line reads "Read once. Tracking needs accounts, which are not set up on this PriceWatch." and there is no button.
+- Card notices are `role="status"` (they persist and refresh with polling); the guest notice is `role="note"`; the add-form notice is `role="alert"`.
+
+### Account Button
+The signed-in avatar, a 40px disc pinned to the aisle rail with a 2px white rim and the readout drop. Focus is the house 2px outline in the rail text color. It opens Clerk's own account menu, which, like the sign-in card, is outside the system.
 
 ### History Panel
 A label-stock sheet that unrolls downward (420ms clip), with facts (uppercase captions over 800-weight values), an ink/label segmented Chart/Table switch, and a step chart: ink step line, dashed ink target line, sticker-tinted zone under the target, sticker-filled dots at or under target. The table is a receipt with dashed rules and sticker marks.
@@ -353,6 +384,7 @@ One authored set on a 24px grid, 1.75 stroke, round caps and joins, currentColor
 - **Do** use sticker yellow for at or below target, wobbler red for within 10% of target, laser red for an active check, and the hatched void label with a "Last read" tag for a failed check.
 - **Do** keep bays touching (column-gap 0) and keep the 330px bay minimum in sync between index.css and `BAY_MIN_WIDTH` in App.tsx.
 - **Do** separate label sections with 1px dashed perforation rules, not boxes.
+- **Do** leave Clerk's sign-in and sign-up card stock, themed only by its theme-editor variables, and keep global input and focus rules inside `:where()` so they never reach it.
 - **Do** make motion physical and short (slap 620ms, reprint 560ms, unroll 420ms, controls 150 to 160ms) on `cubic-bezier(0.16, 1, 0.3, 1)`, and collapse it under reduced motion (the scanner stops centered).
 
 ### Don't:
@@ -364,3 +396,4 @@ One authored set on a 24px grid, 1.75 stroke, round caps and joins, currentColor
 - **Don't** add a second typeface; use Archivo's width and weight axes.
 - **Don't** use hard offset shadows or colored glows other than the scanner line.
 - **Don't** use emoji or glyph characters as icons; use the authored stroke set.
+- **Don't** restyle Clerk's hosted card with PriceWatch tokens or `.cl-*` overrides; the only exception is the 40px avatar rim in the aisle band.

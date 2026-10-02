@@ -15,9 +15,9 @@ import java.math.BigDecimal;
 import java.util.Locale;
 
 /**
- * Tells the user that a product dropped to (or below) their target price, or is back in stock.
- * Always logs the alert; also sends an email when SMTP ({@code spring.mail.*}) and
- * {@code pricewatch.alert.to} are set.
+ * Tells the owner of a product that it dropped to (or below) their target price, or is back in
+ * stock. Always logs the alert; also emails it when SMTP ({@code spring.mail.*}) is set, to the
+ * owner's account email, or to {@code pricewatch.alert.to} when that email is not known.
  */
 @Service
 public class AlertService {
@@ -46,7 +46,7 @@ public class AlertService {
                         ? "It is sold out right now; you will get another alert when it is back in stock.\n"
                         : "")
                 + "\n" + product.getUrl() + "\n";
-        send(subject, body);
+        send(recipient(product), subject, body);
     }
 
     public void sendBackInStock(Product product) {
@@ -63,15 +63,24 @@ public class AlertService {
             body = product.getName() + " is back in stock at " + current + " (your target: " + target + ").\n\n"
                     + product.getUrl() + "\n";
         }
-        send(subject, body);
+        send(recipient(product), subject, body);
     }
 
-    private void send(String subject, String body) {
+    /** The owner's account email, else the configured fallback address; null when neither is known. */
+    String recipient(Product product) {
+        if (product.getOwner() != null && product.getOwner().getEmail() != null) {
+            return product.getOwner().getEmail();
+        }
+        return to == null || to.isBlank() ? null : to;
+    }
+
+    private void send(String to, String subject, String body) {
         log.info("PRICE ALERT - {}", subject);
 
         JavaMailSender sender = mailSender.getIfAvailable();
-        if (sender == null || to == null || to.isBlank()) {
-            log.info("Email is not configured (set spring.mail.* and pricewatch.alert.to) - alert was only logged.");
+        if (sender == null || to == null) {
+            log.info("Email is not configured (set spring.mail.*, and pricewatch.alert.to for owners without a known "
+                    + "email) - alert was only logged.");
             return;
         }
         try {

@@ -18,6 +18,7 @@ keeps the full price history, and notifies you when the price reaches your targe
 - [Tech stack](#tech-stack)
 - [Architecture](#architecture)
 - [Getting started](#getting-started)
+  - [Set up accounts (Clerk)](#set-up-accounts-clerk)
   - [Run it from VS Code](#run-it-from-vs-code-recommended)
   - [Run it from the command line](#run-it-from-the-command-line)
   - [Try it without a real store](#try-it-without-a-real-store)
@@ -40,6 +41,10 @@ keeps the full price history, and notifies you when the price reaches your targe
   default), one page at a time with a delay between requests.
 - **Price history and chart.** Every check is stored. Each product shows its lowest and highest price and an
   interactive chart with your target as a reference line, plus a table view.
+- **Try it as a guest, keep it with an account.** Anyone can paste a link and see the price, stock and photo right
+  away, without signing in. A guest's product is read once. Signing up (email, Google or GitHub, via Clerk's
+  sign-in card) moves the guest's products to the account, where they are checked twice a day and alerts go to
+  the account's email. Every account's shelf is private.
 - **Smart alerts.** You are alerted once when a price crosses your target, not on every check. The alert
   re-arms after the price rises above the target again. Alerts are logged and, if SMTP is configured, emailed.
 - **Back-in-stock alerts.** Availability (in stock, sold out, pre-order) is read on every page, whichever way the
@@ -64,9 +69,9 @@ keeps the full price history, and notifies you when the price reaches your targe
 
 | Layer    | Technology                                                                                       |
 | -------- | ------------------------------------------------------------------------------------------------ |
-| Backend  | Java 21, Spring Boot 3.5 (Web, Data JPA, Validation, Mail), Spring Scheduler, Jsoup, Jackson     |
+| Backend  | Java 21, Spring Boot 3.5 (Web, Data JPA, Validation, Mail, OAuth2 Resource Server), Spring Scheduler, Jsoup, Jackson |
 | Database | H2 (file mode, zero setup) by default; PostgreSQL via the `postgres` profile                     |
-| Frontend | React 19, TypeScript, Vite 8, Recharts, plain CSS (no UI framework)                              |
+| Frontend | React 19, TypeScript, Vite 8, Recharts, Clerk (`@clerk/react`) for sign-in, plain CSS (no UI framework) |
 | Testing  | JUnit 5, AssertJ, Mockito, Spring MockMvc (backend); Oxlint + strict TypeScript (frontend)       |
 | CI       | GitHub Actions (backend build and tests, frontend lint and build)                                |
 
@@ -124,6 +129,44 @@ source activate     # puts them on PATH for the current terminal only
 Run `source activate` in each new terminal before using `mvn`. Dependencies are stored in `backend/.tools/m2`
 instead of `~/.m2`. Run `./setup.sh --force` to update, or delete `backend/.tools` to remove everything.
 The VS Code `backend:` tasks activate the local tools automatically when they are present.
+
+### Set up accounts (Clerk)
+
+PriceWatch works without accounts: everyone is a guest, and each product is read once (no re-checks, no alerts).
+Accounts are what keep products tracked. Sign-in is handled by [Clerk](https://clerk.com), shown as Clerk's own
+sign-in / sign-up card; PriceWatch stores one row per account (`accounts` table), the owner of every product, and
+all products and price history in its own database.
+
+1. Create an application at [dashboard.clerk.com](https://dashboard.clerk.com). Under **User & authentication**,
+   turn on the sign-in methods you want (the card shows Email, Google and GitHub when they are enabled).
+2. Frontend: copy `frontend/.env.example` to `frontend/.env.local` (git-ignored) and set the publishable key:
+   ```bash
+   VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+   ```
+3. Backend: copy `backend/.env.example` to `backend/.env` (git-ignored) and fill in the **Frontend API URL**
+   (Dashboard → Configure → API keys) and the secret key:
+   ```bash
+   CLERK_ISSUER=https://your-app.clerk.accounts.dev
+   CLERK_SECRET_KEY=sk_test_...
+   ```
+   The backend reads this file on start (environment variables with the same names work too). The secret key
+   stays on the server; it is only used to look up each account's email for alerts.
+4. Restart both, open <http://localhost:5173>: **Sign in** and **Sign up** appear in the header.
+
+How guests and accounts fit together:
+
+- A guest is identified by a random id their browser keeps (`localStorage`). Their products are read once; the card
+  offers **Sign up to keep tracking**. Guests can add up to 10 products (`pricewatch.guest.max-products`).
+- Signing up or in moves the guest's products to the account; they get their first tracked check within a minute.
+- Guest products nobody signs up for are removed after 7 days (`pricewatch.guest.keep-days`).
+- If the app is opened from another address than `http://localhost:5173` (your hosting later), add it to
+  `pricewatch.auth.clerk.authorized-parties`.
+
+Optional: instead of the secret-key lookup, Clerk can put the email straight into the session token. In the
+dashboard, open **Sessions → Customize session token** and add `{"email": "{{user.primary_email_address}}"}`.
+
+> **Upgrading from a version without accounts:** products created before accounts and guests existed belong to
+> nobody, so they are deleted (with their price history) the first time this version starts.
 
 ### Run it from VS Code (recommended)
 
@@ -189,7 +232,10 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 | `pricewatch.renderer.enabled`               | `true`                      | Fall back to headless Chrome for JavaScript-rendered pages           |
 | `pricewatch.renderer.timeout-ms`            | `30000`                     | How long to wait for a rendered page to show its price               |
 | `pricewatch.cors.allowed-origins`            | `http://localhost:5173`     | Only needed when the frontend is hosted on another origin            |
-| `pricewatch.alert.to`                        | empty                       | Recipient of alert emails (empty = log only)                         |
+| `pricewatch.auth.clerk.issuer`               | `${CLERK_ISSUER}`           | Clerk Frontend API URL; required (see Set up accounts)               |
+| `pricewatch.auth.clerk.secret-key`           | `${CLERK_SECRET_KEY}`       | Clerk secret key, for looking up account emails (optional)           |
+| `pricewatch.auth.clerk.authorized-parties`   | `http://localhost:5173`     | Origins the app is opened from; tokens for other sites are refused   |
+| `pricewatch.alert.to`                        | empty                       | Fallback recipient for owners whose email is not known yet           |
 | `pricewatch.alert.from`                      | `pricewatch@localhost`      | Sender address of alert emails                                       |
 
 **Reset all data:** stop the backend and delete the `backend/data/` folder.
@@ -200,12 +246,14 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 
 ## Email alerts
 
-Without configuration, price drops are only written to the backend log. To receive emails, create the
-git-ignored file `backend/src/main/resources/application-local.properties`:
+Alerts are emailed to the owner of the product, at the email of their account. Without SMTP settings they are
+only written to the backend log. To send emails, create the git-ignored file
+`backend/src/main/resources/application-local.properties`:
 
 ```properties
-pricewatch.alert.to=you@example.com
 pricewatch.alert.from=you@gmail.com
+# only used for accounts whose email is not known yet
+pricewatch.alert.to=you@example.com
 
 spring.mail.host=smtp.gmail.com
 spring.mail.port=587
@@ -246,6 +294,12 @@ picked up automatically.
 
 Base URL: `http://localhost:8080`
 
+Requests come from a signed-in account (`Authorization: Bearer <Clerk session token>`) or a guest
+(`X-Guest-Id: <uuid>`); the frontend sends both automatically. An invalid token gets `401`; a request with neither
+gets `403` with `"reason": "SIGN_UP_REQUIRED"`, as do guest requests for things only accounts can do (checking
+again, more than 10 products). Endpoints work on the caller's own products; anyone else's product answers `404`.
+`POST /api/guest/claim` (with both headers) moves the guest's products to the account.
+
 | Method   | Path                          | Description                                                   |
 | -------- | ----------------------------- | ------------------------------------------------------------- |
 | `GET`    | `/api/products`               | List tracked products with current, lowest and highest price  |
@@ -260,6 +314,7 @@ Example:
 
 ```bash
 curl -X POST http://localhost:8080/api/products \
+  -H "Authorization: Bearer $CLERK_SESSION_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"url":"https://www.startech.com.bd/benq-gw2491-monitor","targetPrice":13000}'
 ```
@@ -349,6 +404,8 @@ Network access is mocked in tests, so they run offline.
 
 | Symptom                                                        | Fix                                                                                                      |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| No **Sign in** / **Sign up** in the header; cards say "Tracking needs accounts" | Accounts are off. Set the keys as described in [Set up accounts](#set-up-accounts-clerk) and restart both. |
+| "Your session has ended" / every call answers `401`            | Sign in again. If it persists, check that `CLERK_ISSUER` matches the app of the publishable key and that the page's address is in `pricewatch.auth.clerk.authorized-parties`. |
 | UI shows "Cannot reach the PriceWatch API"                     | The backend is not running, or not on port 8080. Start it and press **Retry**.                           |
 | `Port 8080 was already in use`                                 | Stop the other process, or set `server.port` and update the proxy target in `frontend/vite.config.ts`.   |
 | `Database may be already in use` (H2 lock)                     | Only one backend instance can open `backend/data/`. Stop the other instance.                             |
@@ -365,13 +422,15 @@ Network access is mocked in tests, so they run offline.
   read.
 - Many large retailers forbid automated access in their terms of service or block bots. Check a store's terms
   before tracking it, and keep the check interval modest.
-- PriceWatch is a single-user tool with no authentication. Do not expose it to the internet as it is.
+- Sign-in depends on Clerk, a hosted service: without it nobody can sign in, though scheduled price checks keep
+  running. Before exposing PriceWatch to the internet, serve it over HTTPS and add its address to
+  `pricewatch.auth.clerk.authorized-parties`.
 
 ## Roadmap
 
 - [x] Headless-browser fallback for JavaScript-rendered shops
 - [ ] Telegram / Discord / webhook notifications
-- [ ] User accounts and per-user product lists
+- [x] User accounts and per-user product lists
 - [ ] Currency conversion and multi-store comparison for the same product
 - [ ] Export price history as CSV
 - [ ] Container images and a deployment guide

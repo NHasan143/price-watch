@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Product } from './api/types'
+import { AccountControls } from './components/AccountControls'
 import { AddProductForm } from './components/AddProductForm'
 import { EmptyShelf } from './components/EmptyShelf'
 import { HistoryRow } from './components/HistoryRow'
 import { Icon } from './components/Icon'
 import { ProductCard } from './components/ProductCard'
+import { SiteFooter } from './components/SiteFooter'
+import { SiteHeader } from './components/SiteHeader'
 import { useProducts } from './hooks/useProducts'
 import { STATUS_ORDER, statusOf, timeAgo } from './utils/format'
 
@@ -37,8 +40,9 @@ const FILTERS: { id: Filter; label: string; matches: (product: Product) => boole
   { id: 'error', label: 'Check failed', matches: (p) => p.lastError !== null },
 ]
 
-function App() {
-  const { products, setProducts, loading, error, refresh } = useProducts()
+/** @param waiting true while Clerk is still working out who is here: show the loading shelf, fetch nothing yet */
+function App({ waiting = false }: { waiting?: boolean }) {
+  const { products, setProducts, loading, error, refresh } = useProducts(!waiting)
   const [filter, setFilter] = useState<Filter>('all')
   const [historyId, setHistoryId] = useState<number | null>(null)
   const { ref: shelfRef, columns: shelfColumns } = useShelfColumns()
@@ -86,15 +90,8 @@ function App() {
   })
   return (
     <div className="app">
-      <header className="aisle">
-        <div className="aisle-inner">
-          <div className="brand">
-            <img src="/favicon.svg" alt="" width={40} height={40} />
-            <div>
-              <h1>PriceWatch</h1>
-              <p>Name your price. We’ll wait for it.</p>
-            </div>
-          </div>
+      <SiteHeader>
+        <div className="aisle-tools">
           <dl className="readouts">
             <div className="readout">
               <dt>Tracking</dt>
@@ -112,8 +109,9 @@ function App() {
               <dd className="readout-time">{lastChecked ? timeAgo(lastChecked, 'short') : '—'}</dd>
             </div>
           </dl>
+          <AccountControls />
         </div>
-      </header>
+      </SiteHeader>
 
       <main className="store">
         <AddProductForm
@@ -187,21 +185,7 @@ function App() {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="site-footer-inner">
-          <p>Prices are read from public product pages. Check a store’s terms before tracking it.</p>
-          <p className="credit">
-            Created with
-            <svg className="credit-heart" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="love">
-              <path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 3.8 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.3 0 5.5 3.1 4.3 6.6-1.7 4.8-9.2 9.4-9.2 9.4z" />
-            </svg>
-            by{' '}
-            <a href="https://www.linkedin.com/in/naymulhasan143/" target="_blank" rel="noopener noreferrer">
-              Naymul Hasan<span className="sr-only"> (LinkedIn, opens in a new tab)</span>
-            </a>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

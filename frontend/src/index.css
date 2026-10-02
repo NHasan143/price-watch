@@ -571,9 +571,8 @@ a {
 }
 
 /* ---------- Inputs (written on label stock) ---------- */
-input[type='url'],
-input[type='number'],
-input[type='text'] {
+/* :where() keeps these at zero specificity, so Clerk's own sign-in inputs keep Clerk's look */
+:where(input[type='url'], input[type='number'], input[type='text']) {
   width: 100%;
   min-width: 0;
   padding: 6px 2px;
@@ -588,16 +587,16 @@ input[type='text'] {
   transition: background-color 160ms ease-out, box-shadow 160ms ease-out;
 }
 
-input::placeholder {
+:where(input)::placeholder {
   color: var(--ink-3);
   font-weight: 450;
 }
 
-input:focus {
+:where(input):focus {
   outline: none;
 }
 
-input:focus-visible {
+:where(input):focus-visible {
   background: var(--sticker-soft);
   box-shadow: 0 2px 0 var(--ink);
 }
@@ -765,6 +764,7 @@ input[type='number']::-webkit-outer-spin-button {
 }
 
 .printer-intro h2 {
+  text-wrap: balance;
   font-size: 1.625rem;
   font-weight: 850;
   font-stretch: 88%;
@@ -1360,6 +1360,76 @@ img.bay-product {
   box-shadow: inset 0 0 0 1px rgba(168, 53, 47, 0.4);
 }
 
+/* ---------- Accounts ---------- */
+/* Sign-in and sign-up are Clerk's own card (stock design, theme variables only); this styles only
+   what PriceWatch draws around it: the controls in the aisle band and the guest note on a card. */
+.aisle-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* the avatar is pinned to the rail like a readout: a white rim and a short drop */
+.account .cl-userButtonAvatarBox {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.account-sign-in {
+  color: #eceeef;
+}
+
+.account-sign-in:hover {
+  background: var(--rail-hi);
+}
+
+/* "Sign up" is printed on label stock, like the readouts beside it (yellow stays reserved) */
+.account-sign-up {
+  background: #ffffff;
+  color: #141414;
+  font-weight: 750;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.account-sign-up:hover {
+  background: var(--hair);
+  transform: translateY(-1px);
+}
+
+.account-sign-up:active {
+  transform: translateY(1px);
+}
+
+/* a guest's product: one plain line under the rail (nothing failed, so no void tape) */
+.notice-guest {
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 10px;
+}
+
+.notice-guest .icon {
+  margin-top: 0;
+}
+
+/* the text keeps the icon's row; only the button drops to its own line on a narrow card */
+.notice-guest > span,
+.notice-guest > .notice-title {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.notice-action {
+  margin-left: auto;
+}
+
 /* ---------- Loading and empty ---------- */
 .bay-ghost .bay-display {
   background: var(--bay);
@@ -1567,11 +1637,21 @@ img.bay-product {
     padding: 14px 16px;
   }
 
+  .aisle-tools {
+    display: contents;
+  }
+
+  .brand {
+    flex: 1;
+  }
+
   .readouts {
+    order: 2;
     width: 100%;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
 
   .readout {
     min-width: 0;

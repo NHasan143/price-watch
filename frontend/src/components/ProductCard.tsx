@@ -6,6 +6,7 @@ import { failureCopy } from '../utils/failure'
 import { formatMoney, hostOf, statusOf, timeAgo } from '../utils/format'
 import { Barcode } from './Barcode'
 import { FailureNotice } from './FailureNotice'
+import { GuestNotice } from './GuestNotice'
 import { Icon } from './Icon'
 import { LabelPrice } from './LabelPrice'
 
@@ -41,6 +42,8 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
   const gap = product.currentPrice === null ? null : product.currentPrice - product.targetPrice
   const nameId = `product-${product.id}-name`
   const failure = product.lastError ? failureCopy(product) : null
+  // A guest's product was read once: no re-checks or history until they sign up.
+  const guest = !product.tracked
 
   async function checkNow() {
     setBusy('check')
@@ -213,12 +216,17 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
               <span className="label-code">
                 #{String(product.id).padStart(4, '0')}
                 {currency && ` · ${currency}`}
-                {busy === 'check' ? ' · checking…' : ` · checked ${timeAgo(product.lastCheckedAt)}`}
+                {guest
+                  ? ` · read once ${timeAgo(product.lastCheckedAt)}`
+                  : busy === 'check'
+                    ? ' · checking…'
+                    : ` · checked ${timeAgo(product.lastCheckedAt)}`}
               </span>
             </div>
           </div>
         </div>
 
+        {guest && <GuestNotice />}
         {product.lastError && failure && (
           <FailureNotice
             icon={failure.icon}
@@ -236,21 +244,25 @@ export function ProductCard({ product, index, historyOpen, onToggleHistory, onUp
         )}
 
         <div className="bay-actions">
-          <button type="button" className="btn btn-ghost" onClick={checkNow} disabled={busy !== null}>
-            <Icon name="refresh" size={16} />
-            {busy === 'check' ? 'Checking…' : 'Check now'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            aria-expanded={historyOpen}
-            aria-controls={`history-${product.id}`}
-            aria-label={historyOpen ? 'Hide history' : undefined}
-            onClick={onToggleHistory}
-          >
-            <Icon name={historyOpen ? 'close' : 'history'} size={16} />
-            {historyOpen ? 'Hide' : 'History'}
-          </button>
+          {!guest && (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={checkNow} disabled={busy !== null}>
+                <Icon name="refresh" size={16} />
+                {busy === 'check' ? 'Checking…' : 'Check now'}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                aria-expanded={historyOpen}
+                aria-controls={`history-${product.id}`}
+                aria-label={historyOpen ? 'Hide history' : undefined}
+                onClick={onToggleHistory}
+              >
+                <Icon name={historyOpen ? 'close' : 'history'} size={16} />
+                {historyOpen ? 'Hide' : 'History'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="btn btn-ghost"

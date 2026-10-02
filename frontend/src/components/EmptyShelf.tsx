@@ -1,3 +1,4 @@
+import { useAccounts } from '../auth/accounts'
 import { Barcode } from './Barcode'
 import { Icon } from './Icon'
 import { LabelPrice } from './LabelPrice'
@@ -10,11 +11,18 @@ const STEPS = [
 
 /** First-use shelf: what a tracked product looks like, and one action to start. */
 export function EmptyShelf({ onStart }: { onStart: () => void }) {
+  const { enabled, signedIn } = useAccounts()
   return (
     <div className="empty-shelf">
       <div className="empty-copy">
         <h3>Your shelf is empty.</h3>
-        <p>Add the first product you’re waiting on. PriceWatch keeps checking its price, so you don’t have to.</p>
+        <p>
+          {signedIn
+            ? 'Add the first product you’re waiting on. PriceWatch keeps checking its price, so you don’t have to.'
+            : enabled
+              ? 'Add the first product you’re waiting on and see its price right away. Sign up and PriceWatch keeps checking it, so you don’t have to.'
+              : 'Add the first product you’re waiting on and see its price right away.'}
+        </p>
         <ol className="empty-steps">
           {STEPS.map((step, index) => (
             <li key={step.icon}>

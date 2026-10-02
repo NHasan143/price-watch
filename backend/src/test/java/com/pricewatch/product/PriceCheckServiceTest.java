@@ -1,5 +1,7 @@
 package com.pricewatch.product;
 
+import com.pricewatch.account.Account;
+import com.pricewatch.account.AccountRepository;
 import com.pricewatch.alert.AlertService;
 import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.PriceScraper;
@@ -26,7 +28,8 @@ import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:pricecheck-test;DB_CLOSE_DELAY=-1",
-        "pricewatch.scheduler.enabled=false"
+        "pricewatch.scheduler.enabled=false",
+        "pricewatch.auth.clerk.issuer=https://clerk.test"
 })
 class PriceCheckServiceTest {
 
@@ -36,6 +39,10 @@ class PriceCheckServiceTest {
     ProductRepository products;
     @Autowired
     PriceRecordRepository records;
+    @Autowired
+    AccountRepository accounts;
+
+    Long owner;
 
     @MockitoBean
     PriceScraper scraper;
@@ -47,6 +54,8 @@ class PriceCheckServiceTest {
         reset(scraper, alerts);
         records.deleteAll();
         products.deleteAll();
+        accounts.deleteAll();
+        owner = accounts.save(new Account("user_alice", "alice@example.test")).getId();
     }
 
     private static ScrapeResult priced(String price) {
@@ -61,7 +70,7 @@ class PriceCheckServiceTest {
     void createProductStoresFirstPricePoint() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
 
-        Product product = service.createProduct(null, "https://shop.test/p/1", null, new BigDecimal("100.00"));
+        Product product = service.createProduct(owner, null, null, "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
         assertThat(product.getName()).isEqualTo("Test Headphones");
         assertThat(product.getCurrentPrice()).isEqualByComparingTo("120.00");
@@ -73,7 +82,7 @@ class PriceCheckServiceTest {
     @Test
     void alertsOnceWhenPriceCrossesBelowTargetAndAgainAfterItRecovers() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
-        Product product = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
+        Product product = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
         Long id = product.getId();
 
         when(scraper.scrape(any(), any())).thenReturn(priced("95.00"));
@@ -99,7 +108,7 @@ class PriceCheckServiceTest {
     void alertsImmediatelyWhenNewProductIsAlreadyBelowTarget() {
         when(scraper.scrape(any(), any())).thenReturn(priced("80.00"));
 
-        service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
+        service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
         verify(alerts, times(1)).sendPriceDrop(any());
     }
@@ -107,7 +116,7 @@ class PriceCheckServiceTest {
     @Test
     void alertsOnceWhenProductComesBackInStock() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
 
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
         assertThat(service.checkNow(id).getAvailability()).isEqualTo(Availability.OUT_OF_STOCK);
@@ -132,7 +141,7 @@ class PriceCheckServiceTest {
     @Test
     void restockIsNotLostWhenAvailabilityIsUnreadableInBetween() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
 
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.UNKNOWN));
         service.checkNow(id);
@@ -145,7 +154,7 @@ class PriceCheckServiceTest {
     @Test
     void restockAndDropBelowTargetOnTheSameCheckSendOneAlert() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.OUT_OF_STOCK));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
 
         when(scraper.scrape(any(), any())).thenReturn(priced("95.00", Availability.IN_STOCK));
         Product checked = service.checkNow(id);
@@ -164,7 +173,7 @@ class PriceCheckServiceTest {
     void newProductThatIsInStockDoesNotSendRestockAlert() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00", Availability.IN_STOCK));
 
-        service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
+        service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
         verify(alerts, never()).sendBackInStock(any());
     }
@@ -172,7 +181,7 @@ class PriceCheckServiceTest {
     @Test
     void scrapeFailureIsStoredAndKeepsPreviousPrice() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
-        Product product = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
+        Product product = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00"));
 
         when(scraper.scrape(any(), any())).thenThrow(temporary());
         Product checked = service.checkNow(product.getId());
@@ -194,7 +203,7 @@ class PriceCheckServiceTest {
     @Test
     void temporaryFailureIsTriedAgainSoonWithDoublingDelays() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
         when(scraper.scrape(any(), any())).thenThrow(temporary());
 
         Product first = service.checkNow(id);
@@ -216,7 +225,7 @@ class PriceCheckServiceTest {
     @Test
     void blockedShopIsNotTriedAgainEarly() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
 
         when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(
                 ScrapeFailedException.Reason.BLOCKED, "The shop refused the request (HTTP 403)."));
@@ -229,7 +238,7 @@ class PriceCheckServiceTest {
     @Test
     void successfulCheckClearsTheFailureState() {
         when(scraper.scrape(any(), any())).thenReturn(priced("120.00"));
-        Long id = service.createProduct("Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
+        Long id = service.createProduct(owner, null, "Headphones", "https://shop.test/p/1", null, new BigDecimal("100.00")).getId();
         when(scraper.scrape(any(), any())).thenThrow(temporary());
         service.checkNow(id);
 
@@ -249,7 +258,7 @@ class PriceCheckServiceTest {
         when(scraper.scrape(any(), any())).thenThrow(new ScrapeFailedException(ScrapeFailedException.Reason.NO_PRICE, "No price"));
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() ->
-                        service.createProduct("x", "https://shop.test/p/1", null, new BigDecimal("10")))
+                        service.createProduct(owner, null, "x", "https://shop.test/p/1", null, new BigDecimal("10")))
                 .isInstanceOf(ScrapeFailedException.class);
 
         assertThat(products.count()).isZero();

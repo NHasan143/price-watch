@@ -3,7 +3,7 @@ import { api, errorMessage } from '../api/client'
 import type { Product } from '../api/types'
 
 /** Loads the tracked products and keeps them fresh by polling the API. */
-export function useProducts(pollIntervalMs = 60_000) {
+export function useProducts(enabled = true, pollIntervalMs = 60_000) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,10 +22,11 @@ export function useProducts(pollIntervalMs = 60_000) {
   )
 
   useEffect(() => {
+    if (!enabled) return
     void refresh()
     const timer = window.setInterval(() => void refresh(), pollIntervalMs)
     return () => window.clearInterval(timer)
-  }, [refresh, pollIntervalMs])
+  }, [refresh, pollIntervalMs, enabled])
 
   return { products, setProducts, loading, error, refresh }
 }
