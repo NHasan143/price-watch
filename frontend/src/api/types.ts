@@ -14,6 +14,8 @@ export interface Product {
   lowestPrice: number | null
   highestPrice: number | null
   belowTarget: boolean
+  /** False for a guest's product: read once, not re-checked, no alerts until they sign up. */
+  tracked: boolean
   /** As of the last successful check; null for products added before availability was tracked. */
   availability: Availability | null
   lastCheckedAt: string | null

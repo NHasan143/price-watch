@@ -1,5 +1,6 @@
 package com.pricewatch.common;
 
+import com.pricewatch.account.SignUpRequiredException;
 import com.pricewatch.product.ProductNotFoundException;
 import com.pricewatch.scraper.ScrapeFailedException;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,15 @@ public class GlobalExceptionHandler {
     public ProblemDetail notFound(ProductNotFoundException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problem.setTitle("Product not found");
+        return problem;
+    }
+
+    /** 403 with reason SIGN_UP_REQUIRED, so the app can offer the sign-up card instead of an error. */
+    @ExceptionHandler(SignUpRequiredException.class)
+    public ProblemDetail signUpRequired(SignUpRequiredException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, e.getMessage());
+        problem.setTitle("Sign up to keep tracking");
+        problem.setProperty("reason", "SIGN_UP_REQUIRED");
         return problem;
     }
 

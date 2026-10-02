@@ -20,9 +20,29 @@ public interface PriceRecordRepository extends JpaRepository<PriceRecord, Long> 
     @Query("""
             select r.product.id as productId, min(r.price) as minPrice, max(r.price) as maxPrice
             from PriceRecord r
+            where r.product.owner.id = :ownerId
             group by r.product.id
             """)
-    List<PriceStats> summarizeAll();
+    List<PriceStats> summarizeForOwner(@Param("ownerId") Long ownerId);
+
+    @Query("""
+            select r.product.id as productId, min(r.price) as minPrice, max(r.price) as maxPrice
+            from PriceRecord r
+            where r.product.guestId = :guestId
+            group by r.product.id
+            """)
+    List<PriceStats> summarizeForGuest(@Param("guestId") String guestId);
+
+    /** Price history of products from before accounts existed. */
+    @Modifying
+    @Query("delete from PriceRecord r where r.product.id in "
+            + "(select p.id from Product p where p.owner is null and p.guestId is null)")
+    int deleteForUnownedProducts();
+
+    @Modifying
+    @Query("delete from PriceRecord r where r.product.id in "
+            + "(select p.id from Product p where p.guestId is not null and p.createdAt < :cutoff)")
+    int deleteForGuestProductsBefore(@Param("cutoff") java.time.Instant cutoff);
 
     @Query("""
             select r.product.id as productId, min(r.price) as minPrice, max(r.price) as maxPrice

@@ -38,7 +38,7 @@ Thumbs.db
 !.vscode/settings.json
 !.vscode/extensions.json
 
-# Impeccable scratch output (review screenshots, decision page state)
-.impeccable/review/
-.impeccable/questions/
-.impeccable/mocks/
+# Product and design notes (Impeccable): kept on this machine only, not published
+PRODUCT.md
+DESIGN.md
+.impeccable/

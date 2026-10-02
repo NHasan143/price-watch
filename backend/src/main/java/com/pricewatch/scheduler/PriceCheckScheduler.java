@@ -39,7 +39,7 @@ public class PriceCheckScheduler {
 
     @Scheduled(cron = "${pricewatch.scheduler.cron:0 0 */12 * * *}")
     public void checkAllProducts() {
-        List<Product> all = products.findAll();
+        List<Product> all = products.findByOwnerIsNotNull();
         log.info("Scheduled price check started for {} product(s)", all.size());
         checkEach(all);
         log.info("Scheduled price check finished");

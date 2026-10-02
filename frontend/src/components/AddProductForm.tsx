@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { SignUpButton } from '@clerk/react'
 import { api, ApiError, errorMessage } from '../api/client'
+import { useAccounts } from '../auth/accounts'
 import type { Product } from '../api/types'
 import { Barcode } from './Barcode'
 import { FailureNotice } from './FailureNotice'
@@ -12,6 +14,8 @@ interface FormError {
   title?: string
   detail: string
   next?: string
+  /** Only an account can do this (a guest reached the product limit): offer the sign-up card. */
+  signUp?: boolean
 }
 
 function toFormError(error: unknown): FormError {
@@ -20,6 +24,8 @@ function toFormError(error: unknown): FormError {
   }
   const base = { title: error.title, detail: error.message }
   switch (error.reason) {
+    case 'SIGN_UP_REQUIRED':
+      return { ...base, icon: 'tag', signUp: true }
     case 'BLOCKED':
       return {
         ...base,
@@ -33,11 +39,21 @@ function toFormError(error: unknown): FormError {
   }
 }
 
+const INTRO = {
+  account:
+    'Paste a product page from any shop and the price you want to pay. PriceWatch reads the price the shop publishes and checks it again twice a day.',
+  guest:
+    'Paste a product page from any shop and the price you want to pay. PriceWatch reads its price right away; sign up to have it checked twice a day and get an email when it hits your price.',
+  // accounts are not configured on this server: nothing can be tracked, so promise nothing more
+  guestsOnly: 'Paste a product page from any shop and the price you want to pay. PriceWatch reads the price the shop publishes.',
+}
+
 interface Props {
   onCreated: (product: Product) => void
 }
 
 export function AddProductForm({ onCreated }: Props) {
+  const { enabled: accounts, signedIn } = useAccounts()
   const [url, setUrl] = useState('')
   const [targetPrice, setTargetPrice] = useState('')
   const [name, setName] = useState('')
@@ -72,7 +88,7 @@ export function AddProductForm({ onCreated }: Props) {
     <section className="printer" aria-labelledby="add-heading">
       <div className="printer-intro">
         <h2 id="add-heading">Track a product</h2>
-        <p>Paste a product page from any shop and the price you want to pay. PriceWatch reads the price the shop publishes and checks it again twice a day.</p>
+        <p>{INTRO[signedIn ? 'account' : accounts ? 'guest' : 'guestsOnly']}</p>
       </div>
 
       <div className="printer-sheet">
@@ -122,7 +138,7 @@ export function AddProductForm({ onCreated }: Props) {
             <div className="blank-submit">
               <button type="submit" className="btn btn-ink btn-large" disabled={submitting}>
                 <Icon name="plus" size={18} />
-                {submitting ? 'Reading the page…' : 'Start tracking'}
+                {submitting ? 'Reading the page…' : signedIn ? 'Start tracking' : 'Check the price'}
               </button>
             </div>
           </div>
@@ -149,7 +165,24 @@ export function AddProductForm({ onCreated }: Props) {
         </form>
       </div>
 
-      {error && <FailureNotice icon={error.icon} title={error.title} detail={error.detail} next={error.next} />}
+      {error && (
+        <FailureNotice
+          icon={error.icon}
+          title={error.title}
+          detail={error.detail}
+          next={
+            error.signUp && accounts ? (
+              <SignUpButton mode="modal">
+                <button type="button" className="btn btn-ink btn-small">
+                  Sign up
+                </button>
+              </SignUpButton>
+            ) : (
+              error.next
+            )
+          }
+        />
+      )}
     </section>
   )
 }

@@ -1,5 +1,6 @@
 package com.pricewatch.product;
 
+import com.pricewatch.account.Account;
 import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.ScrapeFailedException.Reason;
 import jakarta.persistence.Column;
@@ -9,6 +10,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.ColumnDefault;
 
@@ -23,6 +26,21 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Who tracks this product. Loaded with the product (it is small and alerts need its email after
+     * the transaction ends). Null for a guest's product, until the guest signs up and claims it.
+     */
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private Account owner;
+
+    /**
+     * The browser-held id of the guest who added this product, while nobody owns it. Guest products
+     * are read once: they are not re-checked and send no alerts.
+     */
+    @Column(length = 36)
+    private String guestId;
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -88,7 +106,9 @@ public class Product {
         // required by JPA
     }
 
-    public Product(String name, String url, String cssSelector, BigDecimal targetPrice) {
+    public Product(Account owner, String guestId, String name, String url, String cssSelector, BigDecimal targetPrice) {
+        this.owner = owner;
+        this.guestId = guestId;
         this.name = name;
         this.url = url;
         this.cssSelector = cssSelector;
@@ -101,6 +121,19 @@ public class Product {
 
     public Long getId() {
         return id;
+    }
+
+    public Account getOwner() {
+        return owner;
+    }
+
+    public String getGuestId() {
+        return guestId;
+    }
+
+    /** Re-checked on the schedule and alerting: only products with an owner. */
+    public boolean isTracked() {
+        return owner != null;
     }
 
     public String getName() {

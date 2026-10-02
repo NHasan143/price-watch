@@ -1,5 +1,6 @@
 package com.pricewatch.product;
 
+import com.pricewatch.account.AccountRepository;
 import com.pricewatch.alert.AlertService;
 import com.pricewatch.scraper.Availability;
 import com.pricewatch.scraper.PriceScraper;
@@ -34,6 +35,7 @@ public class PriceCheckService {
     private final ProductRepository products;
     private final PriceRecordRepository records;
     private final AlertService alerts;
+    private final AccountRepository accounts;
     private final TransactionTemplate transaction;
     private final Duration firstRetryDelay;
     private final int maxRetries;
@@ -43,6 +45,7 @@ public class PriceCheckService {
             ProductRepository products,
             PriceRecordRepository records,
             AlertService alerts,
+            AccountRepository accounts,
             TransactionTemplate transaction,
             @Value("${pricewatch.scheduler.retry.first-delay-minutes:15}") long firstRetryDelayMinutes,
             @Value("${pricewatch.scheduler.retry.max-retries:4}") int maxRetries) {
@@ -50,6 +53,7 @@ public class PriceCheckService {
         this.products = products;
         this.records = records;
         this.alerts = alerts;
+        this.accounts = accounts;
         this.transaction = transaction;
         this.firstRetryDelay = Duration.ofMinutes(firstRetryDelayMinutes);
         this.maxRetries = maxRetries;
@@ -64,14 +68,20 @@ public class PriceCheckService {
      * Scrapes the page first (so a bad URL is rejected before anything is saved), then stores the
      * product together with its first price point.
      *
+     * @param ownerId the account that tracks the product, or null for a guest
+     * @param guestId the guest who added it, when there is no owner
      * @throws ScrapeFailedException if no price can be read from the page
      */
-    public Product createProduct(String name, String url, String cssSelector, BigDecimal targetPrice) {
+    public Product createProduct(
+            Long ownerId, String guestId, String name, String url, String cssSelector, BigDecimal targetPrice) {
         String selector = cssSelector == null || cssSelector.isBlank() ? null : cssSelector.trim();
         ScrapeResult result = scraper.scrape(url, selector);
 
-        Product product = new Product(resolveName(name, result, url), url, selector, targetPrice);
         Outcome outcome = Objects.requireNonNull(transaction.execute(status -> {
+            Product product = new Product(
+                    // loaded, not a lazy reference: the alert reads the owner's email after the transaction
+                    ownerId == null ? null : accounts.findById(ownerId).orElseThrow(),
+                    guestId, resolveName(name, result, url), url, selector, targetPrice);
             Alert alert = applyResult(product, result);
             Product saved = products.save(product);
             records.save(new PriceRecord(saved, result.price(), result.availability(), saved.getLastCheckedAt()));
@@ -107,6 +117,9 @@ public class PriceCheckService {
     }
 
     private Product send(Outcome outcome) {
+        if (!outcome.product().isTracked()) {
+            return outcome.product(); // guests get no alerts: there is nobody to tell yet
+        }
         switch (outcome.alert()) {
             case PRICE_DROP -> alerts.sendPriceDrop(outcome.product());
             case BACK_IN_STOCK -> alerts.sendBackInStock(outcome.product());
