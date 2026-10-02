@@ -58,7 +58,8 @@ class PriceScraperTest {
         };
         List<PriceExtractor> extractors = List.of(
                 new CssSelectorExtractor(), new StructuredDataExtractor(new ObjectMapper()), new VisiblePriceExtractor());
-        return new PriceScraper(fetcher, renderer, new ProductImageFinder(new ObjectMapper()), extractors);
+        return new PriceScraper(fetcher, renderer, new ProductNameFinder(new ObjectMapper()),
+                new ProductImageFinder(new ObjectMapper()), extractors);
     }
 
     @Test

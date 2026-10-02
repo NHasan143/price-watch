@@ -2,7 +2,6 @@ package com.pricewatch.scraper;
 
 import com.pricewatch.scraper.ScrapeFailedException.Reason;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -14,7 +13,7 @@ import java.util.Optional;
  * Downloads a product page and asks each {@link PriceExtractor} (in {@code @Order}) to read the
  * price until one succeeds. When the plain download has no readable price, or the shop refuses it,
  * the page is loaded again in a headless browser ({@link PageRenderer}) so prices that JavaScript
- * puts on the page can be read too. Also collects the page title and image for display.
+ * puts on the page can be read too. Also collects the product name and image for display.
  *
  * <p>When no price turns up, the failure says why: the shop blocked us (an HTTP refusal or a bot
  * check page, in either the plain download or the browser), the page could not be loaded, or the
@@ -24,17 +23,18 @@ import java.util.Optional;
 public class PriceScraper {
 
     private static final Logger log = LoggerFactory.getLogger(PriceScraper.class);
-    private static final int MAX_TITLE_LENGTH = 255;
-
     private final PageFetcher fetcher;
     private final PageRenderer renderer;
+    private final ProductNameFinder nameFinder;
     private final ProductImageFinder imageFinder;
     private final List<PriceExtractor> extractors;
 
     public PriceScraper(
-            PageFetcher fetcher, PageRenderer renderer, ProductImageFinder imageFinder, List<PriceExtractor> extractors) {
+            PageFetcher fetcher, PageRenderer renderer, ProductNameFinder nameFinder, ProductImageFinder imageFinder,
+            List<PriceExtractor> extractors) {
         this.fetcher = fetcher;
         this.renderer = renderer;
+        this.nameFinder = nameFinder;
         this.imageFinder = imageFinder;
         this.extractors = extractors;
     }
@@ -84,7 +84,7 @@ public class PriceScraper {
         Availability availability = price.availability() != Availability.UNKNOWN
                 ? price.availability()
                 : AvailabilityDetector.detect(document);
-        return new ScrapeResult(price.price(), price.currency(), availability, title(document), imageFinder.find(document));
+        return new ScrapeResult(price.price(), price.currency(), availability, nameFinder.find(document), imageFinder.find(document));
     }
 
     private static ScrapeFailedException noPrice(
@@ -110,12 +110,5 @@ public class PriceScraper {
                 .map(extractor -> extractor.extract(document, target))
                 .flatMap(Optional::stream)
                 .findFirst();
-    }
-
-    private static String title(Document document) {
-        Element og = document.selectFirst("meta[property=\"og:title\"]");
-        String title = og != null ? og.attr("content") : document.title();
-        title = title == null ? "" : title.trim();
-        return title.length() > MAX_TITLE_LENGTH ? title.substring(0, MAX_TITLE_LENGTH) : title;
     }
 }
