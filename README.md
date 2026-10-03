@@ -21,6 +21,7 @@ keeps the full price history, and notifies you when the price reaches your targe
   - [Set up accounts (Clerk)](#set-up-accounts-clerk)
   - [Run it from VS Code](#run-it-from-vs-code-recommended)
   - [Run it from the command line](#run-it-from-the-command-line)
+  - [Chrome extension](#chrome-extension)
   - [Try it without a real store](#try-it-without-a-real-store)
 - [Configuration](#configuration)
 - [Email alerts](#email-alerts)
@@ -209,6 +210,49 @@ npm run dev
 
 Then open <http://localhost:5173>. Stop each process with `Ctrl+C`.
 
+### Chrome extension
+
+The extension adds the product page you are looking at without copying its link: click the PriceWatch icon in
+the toolbar, and the popup reads the page's name, photo and price (the same JSON-LD, microdata and meta tags the
+backend reads), suggests a target 10% below today's price (or 5, 15, 20%), and adds it to your shelf in one click.
+If the product is already on your shelf, it shows your price instead. The page is read only when you click the
+icon (`activeTab`), so the extension asks for no access to the sites you visit.
+
+1. Build it (the backend and frontend should be running as above):
+   ```bash
+   cd extension
+   npm install
+   npm run build      # or `npm run dev` to rebuild on every change
+   ```
+2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose
+   `extension/dist`. The extension's ID is `nkcpkjhamckjiabjibfdpaopfmkjnacd`: the `key` in
+   `extension/manifest.ts` pins it, so the backend's defaults already allow it (see Configuration).
+3. Pin it from the puzzle-piece menu, open a product page in any shop and click the icon.
+
+Guests and accounts work as on the web app:
+
+- **Guests:** the extension and the web app share one guest id (a small script on the web app's address keeps them
+  equal), so products added from the popup show up on the same shelf.
+- **Accounts:** sign in on the web app; the popup uses that session (Clerk's *sync host*) and has no sign-in form
+  of its own. The build uses `VITE_CLERK_PUBLISHABLE_KEY` from `frontend/.env.local`. Clerk must also allow the
+  extension's origin, once per Clerk instance (this replaces the instance's list of allowed origins, so include any
+  others you already set):
+  ```bash
+  curl -X PATCH https://api.clerk.com/v1/instance \
+    -H "Authorization: Bearer $CLERK_SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"allowed_origins": ["chrome-extension://nkcpkjhamckjiabjibfdpaopfmkjnacd"]}'
+  ```
+
+The API and web app addresses default to `http://localhost:8080` and `http://localhost:5173`; to point the
+extension elsewhere, copy `extension/.env.example` to `extension/.env.local` and rebuild.
+
+**Publishing to the Chrome Web Store:** set `VITE_API_URL` and `VITE_APP_URL` to the hosted addresses, remove the
+`key` from `extension/manifest.ts`, build, and upload a zip of `extension/dist`. The store assigns the extension a
+new ID: add `chrome-extension://<that id>` to `pricewatch.cors.allowed-origins`,
+`pricewatch.auth.clerk.authorized-parties` and Clerk's allowed origins. The listing needs a privacy policy, since
+the extension sends the page's address and a guest id to your PriceWatch.
+
 ## Configuration
 
 All backend settings live in [`backend/src/main/resources/application.properties`](backend/src/main/resources/application.properties).
@@ -231,10 +275,10 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 | `pricewatch.scraper.retry.max-backoff-ms`    | `8000`                      | Longest wait between downloads (a longer `Retry-After` is not waited) |
 | `pricewatch.renderer.enabled`               | `true`                      | Fall back to headless Chrome for JavaScript-rendered pages           |
 | `pricewatch.renderer.timeout-ms`            | `30000`                     | How long to wait for a rendered page to show its price               |
-| `pricewatch.cors.allowed-origins`            | `http://localhost:5173`     | Only needed when the frontend is hosted on another origin            |
+| `pricewatch.cors.allowed-origins`            | `http://localhost:5173`, the extension | The Chrome extension, and the frontend when hosted on another origin |
 | `pricewatch.auth.clerk.issuer`               | `${CLERK_ISSUER}`           | Clerk Frontend API URL; required (see Set up accounts)               |
 | `pricewatch.auth.clerk.secret-key`           | `${CLERK_SECRET_KEY}`       | Clerk secret key, for looking up account emails (optional)           |
-| `pricewatch.auth.clerk.authorized-parties`   | `http://localhost:5173`     | Origins the app is opened from; tokens for other sites are refused   |
+| `pricewatch.auth.clerk.authorized-parties`   | `http://localhost:5173`, the extension | Origins the app and extension run on; tokens for other sites are refused |
 | `pricewatch.alert.to`                        | empty                       | Fallback recipient for owners whose email is not known yet           |
 | `pricewatch.alert.from`                      | `pricewatch@localhost`      | Sender address of alert emails                                       |
 
@@ -368,6 +412,9 @@ pricewatch/
 ├── frontend/                    React + TypeScript app (Vite)
 │   ├── package.json
 │   └── src/                     api/, components/, hooks/, utils/
+├── extension/                   Chrome extension (Manifest V3, Vite); reuses frontend/src styles and components
+│   ├── manifest.ts              manifest, written to dist/ at build time
+│   └── src/                     popup/, readPage.ts (reads the open page), guest-sync.ts
 ├── .vscode/                     launch configurations, tasks, recommended extensions
 └── .github/workflows/ci.yml     build and test on every push and pull request
 ```
@@ -384,6 +431,11 @@ mvn test
 cd frontend
 npm run lint
 npm run build      # includes the strict TypeScript type check
+
+# Chrome extension
+cd extension
+npm run lint
+npm run build
 ```
 
 The backend tests cover:
@@ -422,6 +474,8 @@ Network access is mocked in tests, so they run offline.
   read.
 - Many large retailers forbid automated access in their terms of service or block bots. Check a store's terms
   before tracking it, and keep the check interval modest.
+- The Chrome extension reads the price in your browser, but adding a product still has the backend read the page,
+  so a shop that blocks automated checks can't be added from the popup either.
 - Sign-in depends on Clerk, a hosted service: without it nobody can sign in, though scheduled price checks keep
   running. Before exposing PriceWatch to the internet, serve it over HTTPS and add its address to
   `pricewatch.auth.clerk.authorized-parties`.
@@ -431,6 +485,7 @@ Network access is mocked in tests, so they run offline.
 - [x] Headless-browser fallback for JavaScript-rendered shops
 - [ ] Telegram / Discord / webhook notifications
 - [x] User accounts and per-user product lists
+- [x] Chrome extension: add the product page you are on in one click
 - [ ] Currency conversion and multi-store comparison for the same product
 - [ ] Export price history as CSV
 - [ ] Container images and a deployment guide

@@ -1,0 +1,399 @@
+/* ==========================================================================
+   PriceWatch popup: one bay from the shelf. The product photo stands in the
+   bay, its shelf-edge label on the rail, and the laser sweeps that label while
+   the page is read. Under the rail, a blank label sheet sets "your price".
+   Everything else (tokens, label, rail, buttons, notices) is the web app's
+   own stylesheet, imported before this file.
+   ========================================================================== */
+
+html {
+  scrollbar-width: thin;
+}
+
+body {
+  width: 360px;
+  min-height: 0;
+}
+
+.popup {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Aisle band ---------- */
+.popup-aisle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px 10px 16px;
+}
+
+.popup-wordmark {
+  color: #eceeef;
+  font-size: 1.25rem;
+  font-weight: 850;
+  font-stretch: 125%;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+.popup-wordmark:hover {
+  color: #ffffff;
+}
+
+/* pinned to the rail like the web app's avatar: a white rim and a short drop */
+.popup-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--rail-hi);
+  color: #eceeef;
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.popup-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- The bay ---------- */
+.popup-display {
+  height: 120px;
+  padding: 14px 24px 10px;
+  box-shadow: inset 0 14px 22px -16px var(--bay-shade);
+}
+
+.popup-display .bay-tile,
+.popup-display .bay-product {
+  max-height: 96px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .popup-display img.bay-product {
+    max-height: 80px;
+  }
+}
+
+.popup-bay .rail {
+  box-shadow: none;
+}
+
+.popup-label .label-top {
+  min-height: 0;
+}
+
+.popup-label h1 {
+  font-size: 1rem;
+  font-weight: 700;
+  font-stretch: 82%;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.popup-label .label-shop {
+  overflow-wrap: anywhere;
+}
+
+/* name and price share a row while both fit; a long price (৳28,500.00, ₫12,450,000) wraps under the name
+   at full size instead of squeezing it */
+.popup-label .label-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 12px;
+}
+
+.popup-label .label-name {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+.popup-label .label-price-slot {
+  flex: none;
+  margin-left: auto;
+}
+
+.popup-label .label-foot {
+  margin-top: 10px;
+}
+
+.popup-shelf-tag {
+  animation: reprint 560ms var(--ease-out);
+}
+
+/* the blank label while the page is read: unprinted name lines and price slot under the laser */
+.popup-skeleton {
+  display: block;
+  height: 44px;
+  background:
+    linear-gradient(var(--hair) 0 0) 0 2px / 86% 12px no-repeat,
+    linear-gradient(var(--hair) 0 0) 0 21px / 58% 12px no-repeat,
+    linear-gradient(var(--hair) 0 0) 0 38px / 36% 6px no-repeat;
+}
+
+.label.is-reading .label-price-empty {
+  color: var(--hair-strong);
+}
+
+/* ---------- Your price: a blank label sheet on the wall ---------- */
+.desk {
+  --focus: var(--ink);
+  position: relative;
+  display: grid;
+  gap: 12px;
+  margin: 18px 12px 14px;
+  padding: 16px 16px 14px;
+  border-radius: 4px;
+  background: var(--label);
+  color: var(--ink);
+  box-shadow: 0 18px 32px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.desk-field {
+  display: grid;
+  gap: 2px;
+}
+
+.desk-caption {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* the field is written on the label in the shelf price voice, with the currency printed beside it */
+.desk-price {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  border-bottom: 2px solid var(--ink);
+  transition: background-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.desk-price:focus-within {
+  background: var(--sticker-soft);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* small and raised, like the symbol in the label's price */
+.desk-symbol {
+  margin-top: 9px;
+  padding-left: 2px;
+  font-size: 0.9375rem;
+  font-weight: 750;
+}
+
+.desk-price input {
+  flex: 1;
+  border-bottom: 0;
+  padding: 4px 2px 2px;
+  font-size: 2.125rem;
+  font-weight: 850;
+  font-stretch: 106%;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.desk-price.is-long input {
+  font-size: 1.625rem;
+  padding-top: 8px;
+}
+
+.desk-price input:focus-visible {
+  background: transparent;
+  box-shadow: none;
+}
+
+.desk-price input::placeholder {
+  font-weight: 850;
+  color: var(--ink-3);
+}
+
+.desk-price input:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+
+.desk-currency {
+  align-self: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+/* markdown click-stops, printed on the label */
+.desk-cuts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.desk-cut {
+  justify-content: center;
+  padding: 6px 4px;
+  border-color: var(--hair-strong);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-cut:hover:not(:disabled) {
+  background: var(--hair);
+  color: var(--ink);
+}
+
+/* pressed is a heavier ink rule, so the only solid ink on the sheet is the primary action */
+.desk-cut[aria-pressed='true'],
+.desk-cut[aria-pressed='true']:hover:not(:disabled) {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.desk-cut:disabled {
+  cursor: progress;
+}
+
+.desk-drop {
+  min-height: 1.45em;
+  padding-top: 8px;
+  border-top: 1px dashed var(--hair-strong);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.desk-drop strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.desk-hint {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.desk-action {
+  width: 100%;
+}
+
+.desk-action .icon {
+  flex: none;
+}
+
+/* the laser is on the label above; the button just holds still while it works */
+.desk-action:disabled {
+  cursor: progress;
+}
+
+.desk-notice {
+  margin: 0 -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.desk-notice::before {
+  border-radius: 0;
+}
+
+.desk-notice-action {
+  justify-self: start;
+  margin-top: 8px;
+}
+
+/* ---------- On your shelf ---------- */
+.desk-added {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  font-weight: 750;
+  font-stretch: 92%;
+  animation: reprint 560ms var(--ease-out);
+}
+
+.desk-target {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hair-strong);
+}
+
+.desk-target-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.desk-target-price {
+  font-size: 2.125rem;
+  font-weight: 850;
+  font-stretch: 106%;
+  letter-spacing: -0.03em;
+}
+
+.desk-target-row .label-gap {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.desk-target-row .label-gap-under {
+  color: #141414;
+}
+
+.desk-on-shelf .notice-guest {
+  margin: 0;
+  padding: 10px 0 0;
+  border-top: 1px dashed var(--hair-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* the blank label's print: barcode and SKU line, as on the web app's label printer */
+.desk-foot {
+  margin-top: -2px;
+}
+
+/* the markdown sticker slapped onto the bay's corner when today's price is already at or below yours;
+   the product steps aside so both stay readable */
+.popup-sticker {
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 10px 7px;
+  animation-delay: 180ms;
+}
+
+.popup-sticker .sticker-head {
+  font-size: 0.9375rem;
+}
+
+.popup-display:has(.popup-sticker) {
+  justify-items: start;
+  padding-left: 40px;
+}
+
+/* links styled as buttons ("Open your shelf", "Sign up to watch more") */
+a.btn {
+  text-decoration: none;
+}
