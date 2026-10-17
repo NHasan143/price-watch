@@ -1,0 +1,41 @@
+name: Chrome extension feedback
+description: A bug, a shop the extension cannot read, or an idea.
+title: "[Extension] "
+labels: ["extension"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feedback?
+      options:
+        - Something does not work
+        - A shop's price, name or photo is wrong or missing
+        - An idea or suggestion
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown on chrome://extensions under PriceWatch.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: Product page
+      description: The link of the page you were on, if it matters.
+      placeholder: https://
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you saw instead. A screenshot of the popup helps.
+    validations:
+      required: true
+  - type: input
+    id: chrome
+    attributes:
+      label: Chrome version and operating system
+      placeholder: Chrome 141 on macOS 26

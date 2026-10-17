@@ -74,7 +74,7 @@ keeps the full price history, and notifies you when the price reaches your targe
 | Database | H2 (file mode, zero setup) by default; PostgreSQL via the `postgres` profile                     |
 | Frontend | React 19, TypeScript, Vite 8, Recharts, Clerk (`@clerk/react`) for sign-in, plain CSS (no UI framework) |
 | Testing  | JUnit 5, AssertJ, Mockito, Spring MockMvc (backend); Oxlint + strict TypeScript (frontend)       |
-| CI       | GitHub Actions (backend build and tests, frontend lint and build)                                |
+| CI       | GitHub Actions (backend build and tests, frontend and extension lint and build, extension releases) |
 
 ## Architecture
 
@@ -218,6 +218,11 @@ backend reads), suggests a target 10% below today's price (or 5, 15, 20%), and a
 If the product is already on your shelf, it shows your price instead. The page is read only when you click the
 icon (`activeTab`), so the extension asks for no access to the sites you visit.
 
+**Just want to try it?** Download a ready-made test build from
+[Releases](https://github.com/NHasan143/price-watch/releases) and follow
+[extension/TESTING.md](extension/TESTING.md). Test builds are guest-only and talk to PriceWatch on `localhost`.
+To build it yourself (needed for accounts):
+
 1. Build it (the backend and frontend should be running as above):
    ```bash
    cd extension
@@ -246,6 +251,13 @@ Guests and accounts work as on the web app:
 
 The API and web app addresses default to `http://localhost:8080` and `http://localhost:5173`; to point the
 extension elsewhere, copy `extension/.env.example` to `extension/.env.local` and rebuild.
+
+**Releasing a test build:** bump `version` in `extension/package.json`, add a section for it to
+[`extension/CHANGELOG.md`](extension/CHANGELOG.md), commit, then push a tag:
+`git tag extension-v0.2.0 && git push origin extension-v0.2.0`. The
+[release workflow](.github/workflows/release-extension.yml) builds the guest-only zip, attaches it with a checksum
+and build provenance, and publishes a GitHub release (marked pre-release while the version is `0.x`) with the
+changelog section as its notes.
 
 **Publishing to the Chrome Web Store:** set `VITE_API_URL` and `VITE_APP_URL` to the hosted addresses, remove the
 `key` from `extension/manifest.ts`, build, and upload a zip of `extension/dist`. The store assigns the extension a

@@ -1,0 +1,90 @@
+name: Release Chrome extension
+
+# Push a tag such as extension-v0.2.0 to build the extension and publish it as a GitHub release.
+# The tag must match "version" in extension/package.json, and extension/CHANGELOG.md must have a
+# "## [0.2.0]" section: it becomes the release notes.
+on:
+  push:
+    tags: ["extension-v*"]
+
+permissions:
+  contents: write # create the release
+  id-token: write # sign the build provenance
+  attestations: write
+
+jobs:
+  release:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Check the tag matches package.json
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#extension-v}"
+          expected="$(node -p "require('./package.json').version")"
+          if [ "$version" != "$expected" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match extension/package.json version $expected"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+      - run: npm run lint
+
+      # The release build is guest-only and talks to PriceWatch on localhost:8080 / :5173, so it works with
+      # any local copy of the app. Accounts need the tester's own Clerk key, so they build from source.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ""
+
+      - name: Package
+        id: package
+        run: |
+          zip_name="pricewatch-extension-${{ steps.version.outputs.version }}.zip"
+          (cd dist && zip -r -X "../$zip_name" .)
+          sha256sum "$zip_name" > SHA256SUMS.txt
+          echo "zip=extension/$zip_name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.package.outputs.zip }}
+
+      - name: Write release notes
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          # The CHANGELOG section for this version, without its heading.
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found && /^\[[^]]*\]: / { next }
+            found { print }
+          ' CHANGELOG.md > changes.md
+          if ! grep -q '[^[:space:]]' changes.md; then
+            echo "::error::extension/CHANGELOG.md has no section for $version"
+            exit 1
+          fi
+          sed -e "/{{CHANGES}}/{r changes.md" -e "d" -e "}" \
+              -e "s/{{VERSION}}/$version/g" \
+              -e "s|{{REPO}}|$GITHUB_REPOSITORY|g" \
+              ../.github/extension-release-notes.md > release-notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: PriceWatch for Chrome ${{ steps.version.outputs.version }}
+          body_path: extension/release-notes.md
+          # 0.x versions are test builds for people running PriceWatch locally.
+          prerelease: ${{ startsWith(steps.version.outputs.version, '0.') || contains(steps.version.outputs.version, '-') }}
+          files: |
+            ${{ steps.package.outputs.zip }}
+            extension/SHA256SUMS.txt
