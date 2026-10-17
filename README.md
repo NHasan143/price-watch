@@ -157,7 +157,8 @@ all products and price history in its own database.
 How guests and accounts fit together:
 
 - A guest is identified by a random id their browser keeps (`localStorage`). Their products are read once; the card
-  offers **Sign up to keep tracking**. Guests can add up to 10 products (`pricewatch.guest.max-products`).
+  offers **Sign up to keep tracking**. Guests can add up to 10 products (`pricewatch.guest.max-products`), and
+  at most 20 per hour from one network address whatever guest id they send (`pricewatch.guest.max-adds-per-hour`).
 - Signing up or in moves the guest's products to the account; they get their first tracked check within a minute.
 - Guest products nobody signs up for are removed after 7 days (`pricewatch.guest.keep-days`).
 - If the app is opened from another address than `http://localhost:5173` (your hosting later), add it to
@@ -285,12 +286,15 @@ Any property can also be set with an environment variable (`pricewatch.scheduler
 | `pricewatch.scraper.retry.max-attempts`      | `3`                         | Downloads per check for timeouts, network errors, HTTP 429 and 5xx   |
 | `pricewatch.scraper.retry.initial-backoff-ms`| `1000`                      | Wait before the second download; doubles each time                   |
 | `pricewatch.scraper.retry.max-backoff-ms`    | `8000`                      | Longest wait between downloads (a longer `Retry-After` is not waited) |
+| `pricewatch.scraper.allow-private-addresses` | `false`                     | Also visit local and private network addresses; only for a test shop on your own machine |
 | `pricewatch.renderer.enabled`               | `true`                      | Fall back to headless Chrome for JavaScript-rendered pages           |
 | `pricewatch.renderer.timeout-ms`            | `30000`                     | How long to wait for a rendered page to show its price               |
 | `pricewatch.cors.allowed-origins`            | `http://localhost:5173`, the extension | The Chrome extension, and the frontend when hosted on another origin |
 | `pricewatch.auth.clerk.issuer`               | `${CLERK_ISSUER}`           | Clerk Frontend API URL; required (see Set up accounts)               |
 | `pricewatch.auth.clerk.secret-key`           | `${CLERK_SECRET_KEY}`       | Clerk secret key, for looking up account emails (optional)           |
 | `pricewatch.auth.clerk.authorized-parties`   | `http://localhost:5173`, the extension | Origins the app and extension run on; tokens for other sites are refused |
+| `pricewatch.guest.max-products`              | `10`                        | Products one guest can add                                           |
+| `pricewatch.guest.max-adds-per-hour`         | `20`                        | Products guests can add per hour from one network address (IPv6: per /64) |
 | `pricewatch.alert.to`                        | empty                       | Fallback recipient for owners whose email is not known yet           |
 | `pricewatch.alert.from`                      | `pricewatch@localhost`      | Sender address of alert emails                                       |
 
@@ -345,6 +349,15 @@ the product name and thumbnail.
 
 To support a new kind of store, implement `PriceExtractor`, annotate it with `@Component` and `@Order`, and it is
 picked up automatically.
+
+**Only public addresses are visited.** Anyone can add a link, so the backend refuses links that lead to its own
+network: localhost, private ranges such as `10.x` and `192.168.x`, link-local addresses including cloud metadata
+(`169.254.169.254`), and other special-purpose ranges, in IPv4 and IPv6. `AddressGuard` checks the addresses a
+name resolves to, so other spellings of the same address do not get through. The plain download follows redirects
+itself and checks every hop. Headless Chrome sends all its traffic, including scripts, iframes and WebSockets,
+through `GuardedProxy`, a small local SOCKS5 proxy that connects only to the address it checked, so a name that
+changes its answer (DNS rebinding) cannot slip a private address in either. A refused link is answered with HTTP
+422.
 
 ## REST API
 
@@ -491,6 +504,9 @@ Network access is mocked in tests, so they run offline.
 - Sign-in depends on Clerk, a hosted service: without it nobody can sign in, though scheduled price checks keep
   running. Before exposing PriceWatch to the internet, serve it over HTTPS and add its address to
   `pricewatch.auth.clerk.authorized-parties`.
+- The guest limit per network address counts the address the request arrives from. Behind a reverse proxy, set
+  `server.forward-headers-strategy=native` (and let only the proxy reach the backend), or every guest shares the
+  proxy's address and its limit.
 
 ## Roadmap
 

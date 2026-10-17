@@ -27,6 +27,7 @@ public class ProductService {
     private final PriceRecordRepository records;
     private final PriceCheckService priceChecks;
     private final CurrentRequester requester;
+    private final GuestRateLimiter guestRateLimiter;
     private final int maxGuestProducts;
 
     public ProductService(
@@ -34,11 +35,13 @@ public class ProductService {
             PriceRecordRepository records,
             PriceCheckService priceChecks,
             CurrentRequester requester,
+            GuestRateLimiter guestRateLimiter,
             @Value("${pricewatch.guest.max-products:10}") int maxGuestProducts) {
         this.products = products;
         this.records = records;
         this.priceChecks = priceChecks;
         this.requester = requester;
+        this.guestRateLimiter = guestRateLimiter;
         this.maxGuestProducts = maxGuestProducts;
     }
 
@@ -68,6 +71,10 @@ public class ProductService {
         if (caller.isGuest() && products.countByGuestId(caller.guestId()) >= maxGuestProducts) {
             throw new SignUpRequiredException("Guests can add up to " + maxGuestProducts
                     + " products. Sign up to add more and keep them tracked.");
+        }
+        if (caller.isGuest()) {
+            // Every product added downloads a page, and a new guest id is free: limit per network address too.
+            guestRateLimiter.acquire(requester.clientAddress());
         }
         Product product = priceChecks.createProduct(
                 caller.isGuest() ? null : caller.account().getId(),

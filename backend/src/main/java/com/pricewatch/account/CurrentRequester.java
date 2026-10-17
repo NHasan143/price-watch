@@ -64,6 +64,17 @@ public class CurrentRequester {
         }
     }
 
+    /**
+     * The network address the request came from. Behind a reverse proxy this is the proxy's address unless
+     * {@code server.forward-headers-strategy} is set, so the client's own address is read from its headers.
+     */
+    public String clientAddress() {
+        if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+            return "unknown";
+        }
+        return attributes.getRequest().getRemoteAddr();
+    }
+
     private Optional<Account> signedInAccount() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (!(authentication instanceof JwtAuthenticationToken token)) {

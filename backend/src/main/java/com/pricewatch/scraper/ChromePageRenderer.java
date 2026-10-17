@@ -14,6 +14,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -23,6 +24,9 @@ import java.util.function.Predicate;
  * {@value #POLL_MS} ms until the price shows up, so fast pages return quickly. Before handing the
  * page over, the largest image near the top is marked as the product photo for
  * {@link ProductImageFinder}. One page at a time: Selenium drivers are not thread-safe.
+ *
+ * <p>All of Chrome's traffic goes through {@link GuardedProxy}, so neither the page nor anything it loads
+ * can reach the server's own network.
  */
 @Component
 public class ChromePageRenderer implements PageRenderer, DisposableBean {
@@ -49,18 +53,28 @@ public class ChromePageRenderer implements PageRenderer, DisposableBean {
 
     private final boolean enabled;
     private final long timeoutMs;
+    private final AddressGuard guard;
+    private GuardedProxy proxy;
     private WebDriver driver;
 
     public ChromePageRenderer(
             @Value("${pricewatch.renderer.enabled:true}") boolean enabled,
-            @Value("${pricewatch.renderer.timeout-ms:30000}") long timeoutMs) {
+            @Value("${pricewatch.renderer.timeout-ms:30000}") long timeoutMs,
+            AddressGuard guard) {
         this.enabled = enabled;
         this.timeoutMs = timeoutMs;
+        this.guard = guard;
     }
 
     @Override
     public synchronized Optional<Document> render(String url, Predicate<Document> ready) {
         if (!enabled) {
+            return Optional.empty();
+        }
+        try {
+            guard.check(url);
+        } catch (ScrapeFailedException e) {
+            log.warn("Headless Chrome did not open {}: {}", url, e.getMessage());
             return Optional.empty();
         }
         long deadline = System.currentTimeMillis() + timeoutMs;
@@ -88,6 +102,9 @@ public class ChromePageRenderer implements PageRenderer, DisposableBean {
             log.warn("Headless Chrome could not load {}: {}", url, e.getMessage().lines().findFirst().orElse(""));
             quit();
             return Optional.empty();
+        } catch (IOException e) {
+            log.warn("Headless Chrome could not start its proxy: {}", e.getMessage());
+            return Optional.empty();
         }
     }
 
@@ -95,7 +112,10 @@ public class ChromePageRenderer implements PageRenderer, DisposableBean {
         return Jsoup.parse(browser.getPageSource(), browser.getCurrentUrl());
     }
 
-    private WebDriver driver() {
+    private WebDriver driver() throws IOException {
+        if (proxy == null) {
+            proxy = new GuardedProxy(guard);
+        }
         if (driver == null) {
             // Shops with bot protection (Best Buy, for example) reject a browser whose user agent says
             // "HeadlessChrome" or claims a different Chrome version than the one actually running.
@@ -121,7 +141,13 @@ public class ChromePageRenderer implements PageRenderer, DisposableBean {
                 "--disable-dev-shm-usage",
                 "--no-sandbox",
                 "--window-size=1366,900",
-                "--lang=en-US");
+                "--lang=en-US",
+                // Every connection, loopback included, goes through the proxy that refuses private addresses,
+                // and Chrome looks up no names itself (SOCKS5 sends the host name to the proxy).
+                "--proxy-server=socks5://127.0.0.1:" + proxy.port(),
+                "--proxy-bypass-list=<-loopback>",
+                "--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1",
+                "--force-webrtc-ip-handling-policy=disable_non_proxied_udp");
         if (userAgent != null) {
             options.addArguments("--user-agent=" + userAgent);
         }
@@ -146,5 +172,9 @@ public class ChromePageRenderer implements PageRenderer, DisposableBean {
     @Override
     public synchronized void destroy() {
         quit();
+        if (proxy != null) {
+            proxy.close();
+            proxy = null;
+        }
     }
 }

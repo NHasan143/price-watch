@@ -6,9 +6,12 @@ import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
@@ -35,6 +38,7 @@ class PageFetcherTest {
 
     private final Deque<Reply> replies = new ArrayDeque<>();
     private final List<Long> sleeps = new ArrayList<>();
+    private final List<String> cookies = new ArrayList<>();
     private int requests;
     private HttpServer server;
     private final ExecutorService threads = Executors.newCachedThreadPool();
@@ -62,6 +66,7 @@ class PageFetcherTest {
 
     private void answer(HttpExchange exchange) throws IOException {
         Reply reply = next();
+        cookies.add(String.valueOf(exchange.getRequestHeaders().getFirst("Cookie")));
         try {
             Thread.sleep(reply.delayMs());
         } catch (InterruptedException e) {
@@ -78,8 +83,16 @@ class PageFetcherTest {
         }
     }
 
+    /** The test server on 127.0.0.1 stands in for a public shop; every other address counts as private. */
+    private static final AddressGuard ONLY_THE_TEST_SHOP =
+            new AddressGuard(address -> address.getHostAddress().equals("127.0.0.1"), InetAddress::getAllByName);
+
     private PageFetcher fetcher(int timeoutMs) {
-        return new PageFetcher(timeoutMs, "test", 3, 1000, 8000, sleeps::add);
+        return fetcher(timeoutMs, ONLY_THE_TEST_SHOP);
+    }
+
+    private PageFetcher fetcher(int timeoutMs, AddressGuard guard) {
+        return new PageFetcher(timeoutMs, "test", 3, 1000, 8000, sleeps::add, guard);
     }
 
     private ScrapeFailedException failure() {
@@ -98,6 +111,62 @@ class PageFetcherTest {
         assertThat(fetcher(2000).fetch(url).title()).isEqualTo("Lamp");
         assertThat(requests).isEqualTo(1);
         assertThat(sleeps).isEmpty();
+    }
+
+    @Test
+    void refusesAPrivateAddressWithoutConnecting() {
+        replies.add(Reply.of(200, PRODUCT));
+
+        assertThatThrownBy(() -> fetcher(2000, new AddressGuard(false)).fetch(url))
+                .isInstanceOfSatisfying(ScrapeFailedException.class,
+                        e -> assertThat(e.getReason()).isEqualTo(Reason.INVALID))
+                .hasMessage(AddressGuard.PRIVATE_ADDRESS);
+        assertThat(requests).isZero();
+        assertThat(sleeps).isEmpty();
+    }
+
+    @Test
+    void followsRedirectsAndKeepsTheirCookies() {
+        replies.add(new Reply(302, "text/html", "", Map.of("Location", "/p/2", "Set-Cookie", "session=abc"), 0));
+        replies.add(Reply.of(200, PRODUCT));
+
+        assertThat(fetcher(2000).fetch(url).title()).isEqualTo("Lamp");
+        assertThat(requests).isEqualTo(2);
+        assertThat(cookies).containsExactly("null", "session=abc");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "http://169.254.169.254/latest/meta-data/", "http://10.0.0.1/admin", "http://127.0.0.2:8080/actuator",
+            "http://[::1]/", "http://[fd00:ec2::254]/"})
+    void refusesARedirectToAPrivateAddress(String target) {
+        replies.add(new Reply(301, "text/html", "", Map.of("Location", target), 0));
+
+        ScrapeFailedException e = failure();
+
+        assertThat(e.getReason()).isEqualTo(Reason.INVALID);
+        assertThat(e.getMessage()).isEqualTo(AddressGuard.PRIVATE_ADDRESS);
+        assertThat(requests).isEqualTo(1);
+    }
+
+    @Test
+    void givesUpOnEndlessRedirects() {
+        replies.add(new Reply(302, "text/html", "", Map.of("Location", "/p/1"), 0));
+
+        ScrapeFailedException e = failure();
+
+        assertThat(e.getReason()).isEqualTo(Reason.INVALID);
+        assertThat(e.getMessage()).isEqualTo("The link redirects too many times.");
+        assertThat(requests).isEqualTo(11);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"file:///etc/passwd", "ftp://shop.test/p/1", "gopher://127.0.0.1:6379/_INFO"})
+    void refusesLinksThatAreNotHttp(String link) {
+        assertThatThrownBy(() -> fetcher(2000).fetch(link))
+                .isInstanceOfSatisfying(ScrapeFailedException.class,
+                        e -> assertThat(e.getReason()).isEqualTo(Reason.INVALID));
+        assertThat(requests).isZero();
     }
 
     @Test

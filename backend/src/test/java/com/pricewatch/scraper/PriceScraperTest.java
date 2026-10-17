@@ -43,7 +43,7 @@ class PriceScraperTest {
             ScrapeFailedException.Reason.BLOCKED, "The shop refused the request (HTTP 403).");
 
     private PriceScraper scraper(ScrapeFailedException fetchFailure, String plainHtml, String renderedHtml) {
-        PageFetcher fetcher = new PageFetcher(1000, "test", 1, 0, 0, millis -> { }) {
+        PageFetcher fetcher = new PageFetcher(1000, "test", 1, 0, 0, millis -> { }, new AddressGuard(false)) {
             @Override
             public Document fetch(String url) {
                 if (fetchFailure != null) {
