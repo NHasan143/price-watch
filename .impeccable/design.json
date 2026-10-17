@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-02T12:00:00+00:00",
+  "generatedAt": "2026-10-03T12:00:00+00:00",
   "title": "Design System: PriceWatch",
   "extensions": {
     "colorMeta": {
@@ -759,6 +759,14 @@
       "description": "Plain slip under a guest's (read once, untracked) label: no void tape, one line plus a small ink sign-up button that wraps under on narrow cards.",
       "html": "<div class=\"ds-guest\" role=\"note\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0z\"/><path d=\"M8 8h.01\"/></svg><strong class=\"ds-guest-title\">Read once, not tracked yet</strong><button type=\"button\" class=\"ds-guest-btn\">Sign up to keep tracking</button></div>",
       "css": ".ds-guest{display:flex;align-items:center;flex-wrap:wrap;gap:8px;max-width:360px;padding:10px 12px;border-radius:3px;background:var(--label,#fff);color:var(--ink,#141414);font-family:'Archivo Variable', 'Archivo', system-ui, sans-serif;font-size:.8125rem;line-height:1.45;box-shadow:0 2px 6px -2px rgba(0,0,0,.25)} .ds-guest svg{flex:none} .ds-guest-title{flex:1 1 12rem;min-width:0;font-size:.875rem;font-weight:750;font-stretch:92%;line-height:1.3} .ds-guest-btn{margin-left:auto;padding:6px 10px;border:1px solid transparent;border-radius:3px;background:var(--ink,#141414);color:#fff;font:inherit;font-size:.8125rem;font-weight:650;cursor:pointer;transition:background-color 150ms ease-out,transform 150ms cubic-bezier(.16,1,.3,1)} .ds-guest-btn:hover{background:#000;transform:translateY(-1px)} .ds-guest-btn:active{transform:translateY(1px)} .ds-guest-btn:focus-visible{outline:2px solid var(--ink,#141414);outline-offset:2px}"
+    },
+    {
+      "name": "Markdown Click-Stops",
+      "kind": "chip",
+      "refersTo": "markdown-cut",
+      "description": "Extension popup: four percentage stops under the price field on the blank label sheet; pressed is a 2px ink rule, never a fill.",
+      "html": "<div class=\"ds-cuts\" role=\"group\" aria-label=\"Below today's price\"><button type=\"button\" class=\"ds-cut\" aria-pressed=\"false\">−5%</button><button type=\"button\" class=\"ds-cut\" aria-pressed=\"true\">−10%</button><button type=\"button\" class=\"ds-cut\" aria-pressed=\"false\">−15%</button><button type=\"button\" class=\"ds-cut\" aria-pressed=\"false\">−20%</button></div>",
+      "css": ".ds-cuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 328px; padding: 16px; background: var(--label, #ffffff); } .ds-cut { display: inline-flex; justify-content: center; padding: 6px 4px; border: 1px solid var(--hair-strong, #b9bcbb); border-radius: 3px; background: transparent; color: var(--ink-2, #3f4247); font-family: 'Archivo Variable', 'Archivo', system-ui, sans-serif; font-size: 0.8125rem; font-weight: 650; font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-cut:hover { background: var(--hair, #e3e4e2); color: var(--ink, #141414); } .ds-cut:focus-visible { outline: 2px solid var(--ink, #141414); outline-offset: 2px; } .ds-cut[aria-pressed='true'], .ds-cut[aria-pressed='true']:hover { border-color: var(--ink, #141414); box-shadow: inset 0 0 0 1px var(--ink, #141414); background: transparent; color: var(--ink, #141414); font-weight: 800; }"
     }
   ],
   "narrative": {

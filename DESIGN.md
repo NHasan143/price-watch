@@ -202,6 +202,14 @@ components:
   account-avatar:
     rounded: "{rounded.wobbler}"
     size: "40px"
+  markdown-cut:
+    backgroundColor: "{colors.label}"
+    textColor: "{colors.ink-2}"
+    rounded: "{rounded.control}"
+    padding: "6px 4px"
+  markdown-cut-pressed:
+    backgroundColor: "{colors.label}"
+    textColor: "{colors.ink}"
 ---
 
 # Design System: PriceWatch
@@ -293,6 +301,8 @@ The aisle band's right side holds the readouts and then the account controls (12
 
 Spacing steps are 4, 8, 12, 16, 24, 36 and 48px, with tighter 1 to 3px nudges inside labels.
 
+The Chrome extension popup is one bay from the shelf at a fixed 360px width, stacked top to bottom: a compact aisle band (wordmark at 1.25rem, a 30px pinned avatar), a 120px bay display with the page's product, its shelf-edge label on a graphite rail, and below the rail a blank label sheet set 12px in from the popup's edges. It imports the web app's stylesheet first and only adjusts sizes; it adds no tokens.
+
 ### Named Rules
 **The One Shelf Edge Rule.** Bays touch (column-gap 0) so their rails join into one continuous shelf edge; bays are separated only by a 1px inset seam in the bay display. The 330px minimum bay width is shared with `BAY_MIN_WIDTH` in App.tsx and must change in both places together.
 
@@ -372,6 +382,13 @@ The signed-in avatar, a 40px disc pinned to the aisle rail with a 2px white rim 
 
 ### History Panel
 A label-stock sheet that unrolls downward (420ms clip), with facts (uppercase captions over 800-weight values), an ink/label segmented Chart/Table switch, and a step chart: ink step line, dashed ink target line, sticker-tinted zone under the target, sticker-filled dots at or under target. The table is a receipt with dashed rules and sticker marks.
+
+### Extension Popup
+The web app's label, rail, sticker, buttons and notices, composed as a single bay (see Layout).
+- **Label on the rail:** the current page's product in the shelf price setting. While the page is read the laser sweeps it and the name lines are unprinted hairline bars. A product already on the shelf carries an ink "On your shelf" tag above the price; when today's price is at or below the shopper's price the markdown sticker slaps onto the bay's corner and the product steps aside.
+- **Blank label sheet (the desk):** label stock, 4px, loose-sheet shadow plus a 1px 6% ink edge, 16px padding, 12px gap. "Alert me at or below" caption over a price field written in the price voice (850, 2.125rem, width 106%, small raised symbol, currency code at the right) on the 2px ink underline with the 28% sticker focus wash; then the markdown click-stops; a dashed perforation and the drop line ("$32.90 below today's $329.00"); a full-width large ink action; and the barcode with a "New label" SKU line. Once on the shelf, the sheet shows the shopper's price and gap chip instead, and omits the "under" chip when the sticker is already on the bay.
+- **Markdown click-stops:** four equal outline buttons (−5, −10, −15, −20%) printed on the sheet, 3px, perforation-grey border, ink-2, tabular figures. Pressed is a 2px ink rule (border plus 1px inset) with ink text at 800, never a fill, so the only solid ink on the sheet is the primary action.
+- **Problems:** the void-tape notice runs full-bleed inside the sheet (square corners, no shadow), with a small ink Retry or "Open your shelf" button. The guest limit swaps the action to "Sign up to watch more"; a shop that blocks checks shows the notice and "Open your shelf" with no price field.
 
 ### Icons
 One authored set on a 24px grid, 1.75 stroke, round caps and joins, currentColor, used at 16 to 18px. `clock` and `blocked` share the same 8.5px-radius circle.
