@@ -1,9 +1,11 @@
 # Build output
 backend/target/
 frontend/dist/
+extension/dist/
 
 # Dependencies
 frontend/node_modules/
+extension/node_modules/
 
 # Project-local JDK, Maven and dependencies (backend/setup.sh)
 backend/.tools/
