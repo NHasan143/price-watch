@@ -37,7 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.url=jdbc:h2:mem:guest-test;DB_CLOSE_DELAY=-1",
         "pricewatch.scheduler.enabled=false",
         "pricewatch.auth.clerk.issuer=https://clerk.test",
-        "pricewatch.guest.max-products=2"
+        "pricewatch.guest.max-products=2",
+        // every request comes from 127.0.0.1; GuestAddressSafetyTest covers the per-address limit
+        "pricewatch.guest.max-adds-per-hour=1000"
 })
 class GuestFlowTest {
 

@@ -2,9 +2,12 @@ package com.pricewatch.common;
 
 import com.pricewatch.account.SignUpRequiredException;
 import com.pricewatch.product.ProductNotFoundException;
+import com.pricewatch.product.TooManyRequestsException;
 import com.pricewatch.scraper.ScrapeFailedException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +33,17 @@ public class GlobalExceptionHandler {
         problem.setTitle("Sign up to keep tracking");
         problem.setProperty("reason", "SIGN_UP_REQUIRED");
         return problem;
+    }
+
+    /** 429 with a Retry-After header, so the app can say how long to wait. */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ProblemDetail> tooManyRequests(TooManyRequestsException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+        problem.setTitle("Too many products added");
+        problem.setProperty("reason", "RATE_LIMITED");
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(Math.max(1, e.getRetryAfter().toSeconds())))
+                .body(problem);
     }
 
     @ExceptionHandler(ScrapeFailedException.class)

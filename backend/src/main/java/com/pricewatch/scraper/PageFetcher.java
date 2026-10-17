@@ -3,6 +3,7 @@ package com.pricewatch.scraper;
 import com.pricewatch.scraper.ScrapeFailedException.Reason;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
+import org.jsoup.internal.StringUtil;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.net.http.HttpTimeoutException;
@@ -18,7 +20,10 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Downloads a web page. Kept separate from the extractors so those can be tested with plain HTML.
@@ -27,11 +32,16 @@ import java.util.Locale;
  * again with exponential backoff, honouring the shop's {@code Retry-After} header. A shop that
  * refuses automated access (HTTP 401/403/451 or a bot check page) is not retried: asking again right
  * away would not help and makes a block more likely to stick.
+ *
+ * <p>Redirects are followed here rather than by Jsoup, so {@link AddressGuard} checks every hop: a public
+ * link that redirects to the server's own network is refused before anything is sent there.
  */
 @Component
 public class PageFetcher {
 
     private static final Logger log = LoggerFactory.getLogger(PageFetcher.class);
+    private static final int MAX_REDIRECTS = 10;
+    private static final Set<Integer> REDIRECTS = Set.of(301, 302, 303, 307, 308);
 
     /** Waits between attempts; replaced in tests so they run instantly. */
     @FunctionalInterface
@@ -55,6 +65,7 @@ public class PageFetcher {
     private final long initialBackoffMs;
     private final long maxBackoffMs;
     private final Sleeper sleeper;
+    private final AddressGuard guard;
 
     @Autowired
     public PageFetcher(
@@ -62,18 +73,20 @@ public class PageFetcher {
             @Value("${pricewatch.scraper.user-agent:Mozilla/5.0 (compatible; PriceWatch/1.0)}") String userAgent,
             @Value("${pricewatch.scraper.retry.max-attempts:3}") int maxAttempts,
             @Value("${pricewatch.scraper.retry.initial-backoff-ms:1000}") long initialBackoffMs,
-            @Value("${pricewatch.scraper.retry.max-backoff-ms:8000}") long maxBackoffMs) {
-        this(timeoutMs, userAgent, maxAttempts, initialBackoffMs, maxBackoffMs, Thread::sleep);
+            @Value("${pricewatch.scraper.retry.max-backoff-ms:8000}") long maxBackoffMs,
+            AddressGuard guard) {
+        this(timeoutMs, userAgent, maxAttempts, initialBackoffMs, maxBackoffMs, Thread::sleep, guard);
     }
 
     PageFetcher(int timeoutMs, String userAgent, int maxAttempts, long initialBackoffMs, long maxBackoffMs,
-                Sleeper sleeper) {
+                Sleeper sleeper, AddressGuard guard) {
         this.timeoutMs = timeoutMs;
         this.userAgent = userAgent;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.initialBackoffMs = initialBackoffMs;
         this.maxBackoffMs = maxBackoffMs;
         this.sleeper = sleeper;
+        this.guard = guard;
     }
 
     /** @throws ScrapeFailedException with the {@link Reason} of the last failed attempt */
@@ -112,15 +125,9 @@ public class PageFetcher {
     private Attempt attempt(String url) {
         Connection.Response response;
         try {
-            response = Jsoup.connect(url)
-                    .userAgent(userAgent)
-                    .header("Accept-Language", "en-US,en;q=0.9")
-                    .timeout(timeoutMs)
-                    .followRedirects(true)
-                    // Read error responses too: their status and body say whether the shop is blocking us.
-                    .ignoreHttpErrors(true)
-                    .ignoreContentType(true)
-                    .execute();
+            response = download(url);
+        } catch (ScrapeFailedException e) {
+            return new Attempt(null, e, null);
         } catch (IllegalArgumentException e) {
             return Attempt.failed(Reason.INVALID, "That does not look like a valid URL.");
         } catch (SocketTimeoutException | HttpTimeoutException e) {
@@ -165,6 +172,38 @@ public class PageFetcher {
                             "The shop's server had a problem (HTTP " + status + ")."), retryAfterMs(response))
                     : Attempt.failed(Reason.INVALID, "The shop answered with HTTP " + status + ".");
         };
+    }
+
+    /** Downloads the page, following redirects one hop at a time and checking each address first. */
+    private Connection.Response download(String url) throws IOException {
+        Map<String, String> cookies = new HashMap<>();
+        Connection connection = Jsoup.connect(url);
+        for (int redirects = 0; ; redirects++) {
+            guard.check(connection.request().url()); // the URL exactly as Jsoup will connect to it
+            Connection.Response response = connection
+                    .userAgent(userAgent)
+                    .header("Accept-Language", "en-US,en;q=0.9")
+                    .cookies(cookies)
+                    .timeout(timeoutMs)
+                    .followRedirects(false)
+                    // Read error responses too: their status and body say whether the shop is blocking us.
+                    .ignoreHttpErrors(true)
+                    .ignoreContentType(true)
+                    .execute();
+            String location = response.header("Location");
+            if (!REDIRECTS.contains(response.statusCode()) || location == null || location.isBlank()) {
+                return response;
+            }
+            if (redirects >= MAX_REDIRECTS) {
+                throw new ScrapeFailedException(Reason.INVALID, "The link redirects too many times.");
+            }
+            cookies.putAll(response.cookies()); // shops often set a session cookie on the way
+            try {
+                connection = Jsoup.connect(StringUtil.resolve(response.url(), location.trim()).toExternalForm());
+            } catch (MalformedURLException e) {
+                throw new ScrapeFailedException(Reason.INVALID, "The shop redirected to an address that is not valid.");
+            }
+        }
     }
 
     private static Document parse(Connection.Response response) {
