@@ -11,6 +11,12 @@ const publishableKey: string | undefined = import.meta.env.VITE_CLERK_PUBLISHABL
 
 const GUESTS_ONLY = { enabled: false, signedIn: false }
 
+/**
+ * How long to wait for Clerk before carrying on as a guest. A blocked or unreachable Clerk script never reports
+ * a failure, so without this the shelf would stay on its loading skeleton forever.
+ */
+const CLERK_LOAD_TIMEOUT_MS = 5000
+
 /** Everyone can use the shelf; signing in (Clerk) keeps products tracked and sends alerts. */
 export function Accounts() {
   const dark = useMediaQuery('(prefers-color-scheme: dark)')
@@ -25,9 +31,7 @@ export function Accounts() {
   return (
     <ClerkProvider publishableKey={publishableKey} appearance={clerkTheme(dark)} afterSignOutUrl="/">
       <ClerkLoading>
-        <AccountsContext.Provider value={{ enabled: true, signedIn: false }}>
-          <App waiting />
-        </AccountsContext.Provider>
+        <WaitForClerk />
       </ClerkLoading>
       <ClerkLoaded>
         <Session />
@@ -39,6 +43,26 @@ export function Accounts() {
         </AccountsContext.Provider>
       </ClerkFailed>
     </ClerkProvider>
+  )
+}
+
+/**
+ * Shown while Clerk loads. Briefly holds the loading shelf (so a signed-in visitor never sees a guest shelf first),
+ * then gives up and shows the guest-only app. If Clerk loads later, <ClerkLoading> unmounts this and <Session>
+ * takes over in place, with no page reload.
+ */
+function WaitForClerk() {
+  const [gaveUp, setGaveUp] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setGaveUp(true), CLERK_LOAD_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
+  return (
+    <AccountsContext.Provider value={gaveUp ? GUESTS_ONLY : { enabled: true, signedIn: false }}>
+      <App waiting={!gaveUp} />
+    </AccountsContext.Provider>
   )
 }
 
