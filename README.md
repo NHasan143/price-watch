@@ -477,6 +477,14 @@ The backend tests cover:
 
 Network access is mocked in tests, so they run offline.
 
+The frontend has no automated tests yet. Check these by hand when changing sign-in or startup:
+
+- **Clerk unavailable falls back to guest mode.** With `VITE_CLERK_PUBLISHABLE_KEY` set, block
+  `*.clerk.accounts.dev` (DevTools → Network → right-click a Clerk request → *Block request domain*) and reload
+  http://localhost:5173. The loading shelf should give way to guest products within about 5 seconds, with no
+  **Sign in** / **Sign up** in the header. Unblock the domain and reload: a signed-in account goes straight from
+  the loading shelf to its own products, without showing a guest shelf first.
+
 ## Troubleshooting
 
 | Symptom                                                        | Fix                                                                                                      |
